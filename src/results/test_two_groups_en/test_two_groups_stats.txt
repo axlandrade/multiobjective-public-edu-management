@@ -1,0 +1,3 @@
+--- Execution Statistics ---
+Instance: src/data/test_two_groups.csv
+Minimum Expected Imbalance: 0.14999999999999858
