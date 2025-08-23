@@ -4,7 +4,7 @@
 
 > Modelo de otimização matemática para análise dinâmica de redes de corrupção, usando a teoria de Equilíbrio Estrutural em multigrafos.
 
-Este repositório contém o código e a documentação da pesquisa desenvolvida na dissertação de mestrado de **[Seu Nome]**, no âmbito do Programa de Pós-Graduação em Modelagem Matemática e Computacional da UFRRJ.
+Este repositório contém o código e a documentação da pesquisa desenvolvida na dissertação de mestrado de **Axl Silva de Andrade**, no âmbito do Programa de Pós-Graduação em Modelagem Matemática e Computacional da UFRRJ.
 
 ---
 
@@ -51,7 +51,7 @@ Siga estas instruções para obter uma cópia do projeto e executá-lo em sua m�
 
 1.  **Clone o repositório:**
     ```sh
-    git clone [https://github.com/](https://github.com/)[seu-usuario]/dynamic-corruption-detection.git
+    git clone [https://github.com/](https://github.com/)[axlandrade]/dynamic-corruption-detection.git
     cd dynamic-corruption-detection
     ```
 
