@@ -110,7 +110,7 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo `LICENSE` para
 
 ## Contato e Citação
 
-Axl Silva de Andrade - [seu-email@exemplo.com]
+Axl Silva de Andrade - [axlsandrade.ufrrj@gmail.com]
 
 Se você utilizar este trabalho em sua pesquisa, por favor, cite a dissertação:
 
