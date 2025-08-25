@@ -5,10 +5,10 @@ import os
 import pandas as pd
 from datetime import datetime
 
-# Importa as nossas funções
+# Import our functions
 from graph_constructor import build_multigraph_from_csv
 from optimization_model import solve_multigraph_cc
-from visualizer import visualize_and_save_graph # <-- NOSSA NOVA IMPORTAÇÃO
+from visualizer import visualize_and_save_graph # <-- Our new import
 
 def print_cluster_summary(clusters: dict):
     """Prints a user-friendly summary of the found clusters."""
@@ -34,7 +34,7 @@ def main():
     """
     Main entry point for the corruption network analysis pipeline.
     """
-    # (O parser de argumentos continua o mesmo)
+    # Argument parser remains the same
     parser = argparse.ArgumentParser(description="Solve the Correlation Clustering problem for multigraphs.")
     parser.add_argument('--data', type=str, required=True, help="Path to the input .csv data file.")
     parser.add_argument('--output_dir', type=str, required=True, help="Path to the directory where results will be saved.")
@@ -43,7 +43,7 @@ def main():
 
     print("="*50)
     print("STARTING MULTIGRAPH CLUSTERING ANALYSIS")
-    # ... (o resto do cabeçalho continua o mesmo)
+    # ... (the rest of the header remains the same)
     print(f"Input instance: {args.data}")
     print("="*50)
 
@@ -57,29 +57,29 @@ def main():
         print("Failed to solve the optimization model. Exiting.")
         return
 
-    # --- NOVA PARTE DE OUTPUT ---
-    # 1. Imprime o resumo amigável no terminal
+    # --- NEW OUTPUT SECTION ---
+    # 1. Print the user-friendly summary to the terminal
     print_cluster_summary(clusters)
 
-    # 2. Salva os resultados em arquivos
+    # 2. Save results to files
     print("\nSaving results...")
     try:
         os.makedirs(args.output_dir, exist_ok=True)
         base_name = os.path.splitext(os.path.basename(args.data))[0]
         
-        # 2a. Salva a visualização
+        # 2a. Save the visualization
         viz_path = os.path.join(args.output_dir, f"{base_name}_visualization.png")
         visualize_and_save_graph(G, clusters, viz_path)
         
-        # 2b. Salva o CSV de clusters
+        # 2b. Save the clusters CSV
         clusters_csv_path = os.path.join(args.output_dir, f"{base_name}_clusters.csv")
         df_clusters = pd.DataFrame(list(clusters.items()), columns=['node', 'cluster_id'])
         df_clusters.sort_values(by=['cluster_id', 'node']).to_csv(clusters_csv_path, index=False)
         print(f"  - Cluster partition saved to: {clusters_csv_path}")
         
-        # 2c. Salva as estatísticas
+        # 2c. Save statistics
         stats_txt_path = os.path.join(args.output_dir, f"{base_name}_stats.txt")
-        # ... (código para salvar o stats.txt continua o mesmo)
+        # ... (code to save stats.txt remains the same)
         with open(stats_txt_path, 'w') as f:
             f.write("--- Execution Statistics ---\n")
             f.write(f"Instance: {args.data}\n")
