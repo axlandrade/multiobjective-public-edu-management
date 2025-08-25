@@ -13,11 +13,11 @@ def solve_multigraph_cc(G: nx.MultiGraph, time_limit: int = 3600) -> tuple:
         print("\nBuilding the optimization model...")
         
         model = gp.Model("correlation_clustering_multigraph")
-        model.setParam('OutputFlag', 0) # Desliga os logs do Gurobi para uma saída mais limpa
+        model.setParam('OutputFlag', 0) # Turns off Gurobi logs for cleaner output
 
         nodes = list(G.nodes())
         x = {}
-        # BUG FIX: Usar tuple(sorted(...)) para criar chaves consistentes para as variáveis
+        # BUG FIX: Use tuple(sorted(...)) to create consistent keys for variables
         for i, j in combinations(nodes, 2):
             key = tuple(sorted((i, j)))
             x[key] = model.addVar(vtype=GRB.BINARY, name=f"x_{key[0]}_{key[1]}")
@@ -38,9 +38,9 @@ def solve_multigraph_cc(G: nx.MultiGraph, time_limit: int = 3600) -> tuple:
         print("  - Objective function built.")
 
         constraint_count = 0
-        # BUG FIX: O loop estava como (i, j, j), agora está (i, j, k)
+        # BUG FIX: The loop was (i, j, j), now it is (i, j, k)
         for i, j, k in combinations(nodes, 3):
-            # BUG FIX: Usar as chaves consistentes para acessar as variáveis
+            # BUG FIX: Use consistent keys to access variables
             key_ij = tuple(sorted((i, j)))
             key_jk = tuple(sorted((j, k)))
             key_ik = tuple(sorted((i, k)))
@@ -85,14 +85,14 @@ def _reconstruct_clusters(nodes: list, x: dict) -> dict:
     cluster_graph.add_nodes_from(nodes)
     
     for key, var in x.items():
-        if var.X < 0.5: # If x_ij is 0, they are in the same cluster
+        if var.X < 0.5: # If x_ij is 0, nodes are in the same cluster
             cluster_graph.add_edge(key[0], key[1])
-            
+    
     connected_components = list(nx.connected_components(cluster_graph))
     
     cluster_map = {}
     for i, cluster in enumerate(connected_components):
         for node in cluster:
             cluster_map[node] = i
-            
+    
     return cluster_map
