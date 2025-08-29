@@ -35,7 +35,7 @@ def generate_multigraph_instances():
     K = 5  # Number of parallel edges (contracts) to generate for each original edge
     STD_DEV = 0.05 # Standard deviation for probability variation
     
-    output_dir = '/home/axl/Documentos/GitHub/dynamic-corruption-detection/src/data'
+    output_dir = 'data'
     os.makedirs(output_dir, exist_ok=True)
     
     print(f"Generating multigraph instances (K={K}) in folder '{output_dir}'...")
