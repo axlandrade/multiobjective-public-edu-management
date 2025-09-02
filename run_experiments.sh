@@ -1,34 +1,34 @@
 #!/bin/bash
-echo "Iniciando a bateria de experimentos..."
+echo "Starting experiments"
 
-echo "Executando para P1..."
+echo "Running for P1..."
 python src/main.py --data data/run1_P1_k5.csv --output_dir results/run1_P1_k5 --time_limit 7200
 
-echo "Executando para P2..."
+echo "Running for P2..."
 python src/main.py --data data/run1_P2_k5.csv --output_dir results/run1_P2_k5 --time_limit 7200
 
-echo "Executando para P3..."
+echo "Running for P3..."
 python src/main.py --data data/run1_P3_k5.csv --output_dir results/run1_P3_k5 --time_limit 7200
 
-echo "Executando para P4..."
+echo "Running for P4..."
 python src/main.py --data data/run1_P4_k5.csv --output_dir results/run1_P4_k5 --time_limit 7200
 
-echo "Executando para P5..."
+echo "Running for P5..."
 python src/main.py --data data/run1_P5_k5.csv --output_dir results/run1_P5_k5 --time_limit 7200
 
-echo "Executando para P6..."
+echo "Running for P6..."
 python src/main.py --data data/run1_P6_k5.csv --output_dir results/run1_P6_k5 --time_limit 7200
 
-echo "Executando para P7..."
+echo "Running for P7..."
 python src/main.py --data data/run1_P7_k5.csv --output_dir results/run1_P7_k5 --time_limit 7200
 
-echo "Executando para P8..."
+echo "Running for P8..."
 python src/main.py --data data/run1_P8_k5.csv --output_dir results/run1_P8_k5 --time_limit 7200
 
-echo "Executando para P9..."
+echo "Running for P9..."
 python src/main.py --data data/run1_P9_k5.csv --output_dir results/run1_P9_k5 --time_limit 7200
 
-echo "Executando para P10..."
+echo "Running for P10..."
 python src/main.py --data data/run1_P10_k5.csv --output_dir results/run1_P10_k5 --time_limit 7200
 
-echo "Bateria de experimentos concluida!"
+echo "Experiments done!"
