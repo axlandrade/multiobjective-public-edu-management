@@ -15,7 +15,8 @@
                 "ms-python.python",
                 "ms-python.vscode-pylance",
                 "ms-toolsai.jupyter",
-                "eamodio.gitlens"
+                "eamodio.gitlens",
+                "mechatroner.rainbow-csv"
             ]
         }
     }
