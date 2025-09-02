@@ -4,7 +4,7 @@
 
 > A mathematical optimization model for the dynamic analysis of corruption networks, using Structural Balance theory on multigraphs.
 
-This repository contains the code and documentation for the research developed in the Master's thesis of **Axl Silva de Andrade**, as part of the Graduate Program in Mathematical and Computational Modeling at UFRRJ.
+This repository contains the code and documentation for the research developed in the Master's thesis of **Axl Silva de Andrade**, as part of the Graduate Program in Mathematical and Computational Modeling at UFRRJ. The entire development environment is containerized using Docker and VS Code Dev Containers for simple, one-click setup and perfect reproducibility.
 
 ---
 
@@ -40,14 +40,18 @@ This project proposes an extension of the **Probabilistic Structural Balance** m
 
 ## Getting Started
 
-Follow these instructions to get a copy of the project up and running on your local machine.
+This project is configured to run inside a **Dev Container**, which automates the entire setup process.
 
 ### Prerequisites
 
-* Python 3.9+
-* An optimization solver, such as Gurobi or CPLEX, installed and with a valid license.
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+* [Visual Studio Code](https://code.visualstudio.com/)
+* The [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code.
+* A valid license for an optimization solver (e.g., Gurobi). You will need to configure Gurobi license access within the container environment if required.
 
 ### Installation
+
+The installation is fully automated by VS Code.
 
 1.  **Clone the repository:**
     ```sh
@@ -55,34 +59,37 @@ Follow these instructions to get a copy of the project up and running on your lo
     cd dynamic-corruption-detection
     ```
 
-2.  **Create and activate a virtual environment:**
-    ```sh
-    python -m venv venv
-    # On Windows:
-    venv\Scripts\activate
-    # On Linux/Mac:
-    source venv/bin/activate
-    ```
+2.  **Open the folder in VS Code.**
 
-3.  **Install the dependencies:**
-    (You will need to create this file by running `pip freeze > requirements.txt` in your activated environment)
-    ```sh
-    pip install -r requirements.txt
-    ```
+3.  **Reopen in Container:** A notification will appear in the bottom-right corner. Click on **"Reopen in Container"**.
+
+That's it. VS Code will now build the Docker image, install all Python dependencies, configure the extensions (like GitLens and Jupyter), and launch a fully configured development environment.
 
 ---
 
 ## Usage
 
-The model can be executed through the main script in the `src` folder.
+Once the Dev Container is running, all commands should be executed from the **integrated terminal in VS Code**.
 
-1.  **Prepare your data:** Ensure your contract data is in `.csv` format within the `/data` folder, with the following columns: `node_1`, `node_2`, `positive_prob`, `weight`.
-
-2.  **Run the model:**
+1.  **Generate the research instances:**
+    The first step is to generate the multigraph `.csv` files from the base data.
     ```sh
-    python src/main.py --data data/run1_p1.csv --output_dir results/
+    python src/instance_generator.py
     ```
-    The script will generate the results (the cluster partition and statistics) in the specified output directory.
+    This will populate the `/data` folder with the `run1_P1_k5.csv`, `run1_P2_k5.csv`, etc. files.
+
+2.  **Run a single experiment:**
+    To test a single instance, use the `main.py` script.
+    ```sh
+    python src/main.py --data data/run1_P1_k5.csv --output_dir results/run1_P1_k5_results
+    ```
+
+3.  **Run the full batch of experiments:**
+    To execute all 10 experiments in sequence, use the provided shell script.
+    ```sh
+    ./run_experiments.sh
+    ```
+    Results for each run will be saved in a dedicated subfolder within the `/results` directory.
 
 ---
 
@@ -90,14 +97,16 @@ The model can be executed through the main script in the `src` folder.
 
 ```
 .
+├── .devcontainer/    # VS Code Dev Container configuration (json, Dockerfile)
 ├── data/             # Input data files (.csv)
-├── src/              # Project source code (.py)
-│   ├── graph_constructor.py
-│   ├── optimization_model.py
-│   └── main.py
-├── results/          # Output files (tables, images)
-├── venv/             # Python virtual environment
-└── README.md
+├── src/              # Python source code (.py)
+├── results/          # Output files (tables, images) - Ignored by Git
+|
+├── .gitignore        # Specifies files for Git to ignore
+├── LICENSE           # Project license (MIT)
+├── README.md         # This file
+├── requirements.txt  # Python package dependencies
+└── run_experiments.sh # Script to run all experiments
 ```
 
 ---
@@ -114,4 +123,4 @@ Axl Silva de Andrade - [axlsandrade.ufrrj@gmail.com]
 
 If you use this work in your research, please cite the dissertation:
 
-> Andrade, A. S. (2026). *Análise Dinâmica de Redes de Corrupção com Equilíbrio Estrutural em Multigrafos*. Master's Thesis, Graduate Program in Mathematical and Computational Modeling, Federal Rural University of Rio de Janeiro, Seropédica, RJ, Brazil.
+> Andrade, A. S. (2026). *Dynamic Analysis of Corruption Networks with Structural Balance on Multigraphs*. Master's Thesis, Graduate Program in Mathematical and Computational Modeling, Federal Rural University of Rio de Janeiro, Seropédica, RJ, Brazil.
