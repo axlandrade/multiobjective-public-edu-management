@@ -1,8 +1,16 @@
 {
-    "name": "Python 3.9 - Corruption Network Analysis",
-    "dockerfile": "../Dockerfile",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
-    "workspaceFolder": "/app",
+    "name": "Python 3.12 - Corruption Network Analysis",
+    // O VS Code agora procurará o Dockerfile na MESMA pasta que este json.
+    "build": {
+        // "context" diz ao Docker qual pasta usar como base para encontrar
+        // os arquivos que serão copiados (src, requirements.txt, etc.).
+        // ".." significa a pasta pai, ou seja, a raiz do projeto.
+        "context": "..",
+        // "dockerfile" agora aponta para o Dockerfile que está nesta mesma pasta.
+        "dockerfile": "Dockerfile"
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "workspaceFolder": "/workspace",
     "customizations": {
         "vscode": {
             "extensions": [
