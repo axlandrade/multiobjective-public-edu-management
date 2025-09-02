@@ -7,12 +7,10 @@
     "features": {
         "ghcr.io/devcontainers/features/git:1": {}
     },
-    "remoteUser": "vscode",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
     "workspaceFolder": "/workspace",
     "customizations": {
         "vscode": {
-            // A MUDANÇA ESTÁ AQUI: Adicionamos o GitLens à lista
             "extensions": [
                 "ms-python.python",
                 "ms-python.vscode-pylance",
