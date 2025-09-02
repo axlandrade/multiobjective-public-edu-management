@@ -2,7 +2,7 @@
 FROM python:3.12-slim
 
 # Defina o diretório de trabalho dentro do container
-WORKDIR /app
+WORKDIR /workspace
 
 # Copie o arquivo de dependências e instale-as
 # Esta etapa é otimizada pelo cache do Docker
