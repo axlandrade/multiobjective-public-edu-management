@@ -3,3 +3,5 @@ networkx
 matplotlib
 gurobipy
 numpy
+jupyter
+notebook

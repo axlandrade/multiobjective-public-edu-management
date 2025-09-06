@@ -1,34 +1,57 @@
 #!/bin/bash
-echo "Starting experiments"
+echo "======================================================"
+echo "Starting the MULTI-OBJECTIVE experiment batch run..."
+echo "======================================================"
 
-echo "Running for P1..."
-python src/main.py --data data/run1_P1_k5.csv --output_dir results/run1_P1_k5 --time_limit 7200
+# --- Configuration ---
+# Define the probability sets (P1 to P10) to test
+PROB_SETS=("P1" "P2" "P3" "P4" "P5" "P6" "P7" "P8" "P9" "P10")
 
-echo "Running for P2..."
-python src/main.py --data data/run1_P2_k5.csv --output_dir results/run1_P2_k5 --time_limit 7200
+# Define the LAMBDA values to explore for each instance
+LAMBDA_VALUES=(0.0 0.25 0.5 0.75 1.0)
 
-echo "Running for P3..."
-python src/main.py --data data/run1_P3_k5.csv --output_dir results/run1_P3_k5 --time_limit 7200
+# Other parameters
+K_VALUE=5
+TIME_LIMIT=3600
+INSTANCE_PREFIX="run1"
 
-echo "Running for P4..."
-python src/main.py --data data/run1_P4_k5.csv --output_dir results/run1_P4_k5 --time_limit 7200
+# --- Execution Loop ---
+# Outer loop: Iterate through each probability set
+for P_SET in "${PROB_SETS[@]}"
+do
+    INSTANCE_NAME="${INSTANCE_PREFIX}_${P_SET}_k${K_VALUE}"
+    INSTANCE_FILE="data/${INSTANCE_NAME}.csv"
+    
+    echo ""
+    echo ">>> Processing Instance: $INSTANCE_NAME <<<"
+    
+    # Check if the data file exists
+    if [ ! -f "$INSTANCE_FILE" ]; then
+        echo "Warning: Data file not found, skipping: $INSTANCE_FILE"
+        continue
+    fi
 
-echo "Running for P5..."
-python src/main.py --data data/run1_P5_k5.csv --output_dir results/run1_P5_k5 --time_limit 7200
+    # Inner loop: Iterate through each lambda value
+    for LAMBDA in "${LAMBDA_VALUES[@]}"
+    do
+        echo "----------------------------------------"
+        echo "Executing with LAMBDA = $LAMBDA"
+        
+        OUTPUT_DIR="results/${INSTANCE_NAME}_lambda_${LAMBDA}"
+        
+        # Execute the main Python script
+        python src/main.py \
+          --data "$INSTANCE_FILE" \
+          --output_dir "$OUTPUT_DIR" \
+          --lambda_weight "$LAMBDA" \
+          --time_limit $TIME_LIMIT
+        
+        echo "Finished execution for LAMBDA = $LAMBDA"
+    done
+    echo ">>> Finished all lambda tests for Instance: $INSTANCE_NAME <<<"
+done
 
-echo "Running for P6..."
-python src/main.py --data data/run1_P6_k5.csv --output_dir results/run1_P6_k5 --time_limit 7200
-
-echo "Running for P7..."
-python src/main.py --data data/run1_P7_k5.csv --output_dir results/run1_P7_k5 --time_limit 7200
-
-echo "Running for P8..."
-python src/main.py --data data/run1_P8_k5.csv --output_dir results/run1_P8_k5 --time_limit 7200
-
-echo "Running for P9..."
-python src/main.py --data data/run1_P9_k5.csv --output_dir results/run1_P9_k5 --time_limit 7200
-
-echo "Running for P10..."
-python src/main.py --data data/run1_P10_k5.csv --output_dir results/run1_P10_k5 --time_limit 7200
-
-echo "Experiments done!"
+echo ""
+echo "======================================================"
+echo "All experiment batches completed!"
+echo "======================================================"
