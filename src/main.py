@@ -1,92 +1,110 @@
 # src/main.py
-
 import argparse
 import os
 import pandas as pd
 from datetime import datetime
+import time
 
-# Import our functions
+# Import our custom modules
 from graph_constructor import build_multigraph_from_csv
 from optimization_model import solve_multigraph_cc
-from visualizer import visualize_and_save_graph # <-- Our new import
+from visualizer import visualize_and_save_graph
 
 def print_cluster_summary(clusters: dict):
-    """Prints a user-friendly summary of the found clusters."""
+    """
+    [English] Prints a user-friendly summary of the found clusters.
+    [Português] Imprime um resumo amigável dos clusters encontrados.
+    """
     print("\n--- Cluster Partition Summary ---")
-    
-    # Group nodes by cluster_id
     grouped_clusters = {}
     for node, cluster_id in clusters.items():
-        if cluster_id not in grouped_clusters:
-            grouped_clusters[cluster_id] = []
-        grouped_clusters[cluster_id].append(node)
+        # The cluster_id is the representative's ID
+        grouped_clusters.setdefault(cluster_id, []).append(node)
     
-    # Sort nodes within each cluster for consistent output
     for cid in grouped_clusters:
         grouped_clusters[cid].sort()
         
     for cid, members in sorted(grouped_clusters.items()):
-        print(f"Cluster {cid}: {members}")
+        print(f"Cluster represented by '{cid}': {members}")
     print("---------------------------------")
 
 
 def main():
     """
-    Main entry point for the corruption network analysis pipeline.
+    [English] 
+    Main entry point for the multi-objective corruption network analysis pipeline.
+    Orchestrates data loading, model solving, and saving the results.
+    
+    [Português]
+    Ponto de entrada principal para o pipeline de análise multiobjetivo de redes de corrupção.
+    Orquestra o carregamento de dados, a resolução do modelo e o salvamento dos resultados.
     """
-    # Argument parser remains the same
-    parser = argparse.ArgumentParser(description="Solve the Correlation Clustering problem for multigraphs.")
-    parser.add_argument('--data', type=str, required=True, help="Path to the input .csv data file.")
-    parser.add_argument('--output_dir', type=str, required=True, help="Path to the directory where results will be saved.")
-    parser.add_argument('--time_limit', type=int, default=3600, help="Time limit in seconds for the optimization solver. Default: 3600.")
+    parser = argparse.ArgumentParser(description="Solve the Multi-Objective Correlation Clustering problem for multigraphs.")
+    
+    parser.add_argument('--data', required=True, help="Path to the input .csv data file.")
+    parser.add_argument('--output_dir', required=True, help="Directory to save results.")
+    parser.add_argument('--time_limit', type=int, default=3600, help="Time limit in seconds for the optimization solver.")
+    
+    # NEW ARGUMENT FOR LAMBDA
+    parser.add_argument(
+        '--lambda_weight', 
+        type=float, 
+        default=0.5, 
+        help="Lambda weight (0.0 to 1.0) for the weighted sum objective. 1.0 focuses purely on disagreement, 0.0 on minimizing clusters."
+    )
+    
     args = parser.parse_args()
 
-    print("="*50)
-    print("STARTING MULTIGRAPH CLUSTERING ANALYSIS")
-    # ... (the rest of the header remains the same)
+    start_time = time.time()
+    print("="*50 + f"\nSTARTING MULTI-OBJECTIVE ANALYSIS | {time.strftime('%Y-%m-%d %H:%M:%S')}\n" + "="*50)
     print(f"Input instance: {args.data}")
+    print(f"Output directory: {args.output_dir}")
+    print(f"Lambda Weight: {args.lambda_weight}") # Display the lambda value
+    print(f"Time limit: {args.time_limit}s")
     print("="*50)
 
     G = build_multigraph_from_csv(args.data)
-    if not G:
-        print("Failed to build the graph. Exiting.")
-        return
+    if not G: return
     
-    clusters, objective_value, execution_time = solve_multigraph_cc(G, time_limit=args.time_limit)
-    if not clusters:
-        print("Failed to solve the optimization model. Exiting.")
-        return
+    # Pass the new lambda_weight argument to the solver function
+    results = solve_multigraph_cc(G, lambda_weight=args.lambda_weight, time_limit=args.time_limit)
+    if not results: return
 
-    # --- NEW OUTPUT SECTION ---
-    # 1. Print the user-friendly summary to the terminal
+    clusters, obj_val, exec_time = results
+    
     print_cluster_summary(clusters)
 
-    # 2. Save results to files
     print("\nSaving results...")
     try:
         os.makedirs(args.output_dir, exist_ok=True)
-        base_name = os.path.splitext(os.path.basename(args.data))[0]
         
-        # 2a. Save the visualization
-        viz_path = os.path.join(args.output_dir, f"{base_name}_visualization.png")
+        # Modify the base name to include the lambda value for unique results
+        base_name = os.path.splitext(os.path.basename(args.data))[0]
+        result_prefix = f"{base_name}_lambda_{args.lambda_weight}"
+
+        # Save visualization
+        viz_path = os.path.join(args.output_dir, f"{result_prefix}_viz.png")
         visualize_and_save_graph(G, clusters, viz_path)
         
-        # 2b. Save the clusters CSV
-        clusters_csv_path = os.path.join(args.output_dir, f"{base_name}_clusters.csv")
-        df_clusters = pd.DataFrame(list(clusters.items()), columns=['node', 'cluster_id'])
-        df_clusters.sort_values(by=['cluster_id', 'node']).to_csv(clusters_csv_path, index=False)
+        # Save cluster partition
+        clusters_csv_path = os.path.join(args.output_dir, f"{result_prefix}_clusters.csv")
+        df_clusters = pd.DataFrame(list(clusters.items()), columns=['node', 'cluster_representative'])
+        df_clusters.sort_values(by=['cluster_representative', 'node']).to_csv(clusters_csv_path, index=False)
         print(f"  - Cluster partition saved to: {clusters_csv_path}")
         
-        # 2c. Save statistics
-        stats_txt_path = os.path.join(args.output_dir, f"{base_name}_stats.txt")
-        # ... (code to save stats.txt remains the same)
+        # Save execution statistics
+        total_time = time.time() - start_time
+        stats_txt_path = os.path.join(args.output_dir, f"{result_prefix}_stats.txt")
         with open(stats_txt_path, 'w') as f:
-            f.write("--- Execution Statistics ---\n")
+            f.write(f"--- Execution Statistics ---\n")
             f.write(f"Instance: {args.data}\n")
-            f.write(f"Minimum Expected Imbalance: {objective_value}\n")
-            # ... etc
+            f.write(f"Lambda Weight: {args.lambda_weight}\n")
+            f.write(f"Combined Objective Value: {obj_val}\n")
+            f.write(f"Solver Execution Time (s): {exec_time}\n")
+            f.write(f"Total Script Time (s): {total_time}\n")
+            f.write(f"Number of Clusters Found: {len(set(clusters.values()))}\n")
         print(f"  - Execution stats saved to: {stats_txt_path}")
-
+    
     except Exception as e:
         print(f"An error occurred while saving results: {e}")
             

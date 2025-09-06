@@ -5,94 +5,155 @@ import gurobipy as gp
 from gurobipy import GRB
 from itertools import combinations
 
-def solve_multigraph_cc(G: nx.MultiGraph, time_limit: int = 3600) -> tuple:
+def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit: int = 3600) -> tuple:
     """
-    Solves the Probabilistic Correlation Clustering problem for a multigraph.
+    [English]
+    Solves the Multi-Objective Probabilistic Correlation Clustering problem
+    for a multigraph using the representative formulation and a weighted sum approach.
+
+    Args:
+        G: The input multigraph. Edges must have 'positive_prob' and 'weight'.
+        lambda_weight: The weight (lambda) for the objective function, balancing
+                       disagreement (lambda) vs. number of clusters (1-lambda).
+        time_limit: The maximum time in seconds for the solver.
+
+    Returns:
+        A tuple containing:
+        - dict: A dictionary mapping each node to its cluster representative.
+        - float: The final combined objective function value.
+        - float: The computation time spent by the solver.
+    
+    ------------------------------------------------------------------------------------
+
+    [Português]
+    Resolve o problema de Correlation Clustering Probabilístico Multiobjetivo
+    para um multigrafo, usando a formulação por representantes e a abordagem de soma ponderada.
+
+    Argumentos:
+        G: O multigrafo de entrada. As arestas devem ter os atributos 'positive_prob' e 'weight'.
+        lambda_weight: O peso (lambda) para a função objetivo, que balanceia o 
+                       desequilíbrio (lambda) vs. o número de clusters (1-lambda).
+        time_limit: O tempo máximo em segundos para a execução do solver.
+
+    Retorna:
+        Uma tupla contendo:
+        - dict: Um dicionário que mapeia cada nó ao seu representante de cluster.
+        - float: O valor final da função objetivo combinada.
+        - float: O tempo computacional gasto pelo solver.
     """
     try:
-        print("\nBuilding the optimization model...")
+        print("\nBuilding the multi-objective optimization model...")
         
-        model = gp.Model("correlation_clustering_multigraph")
-        model.setParam('OutputFlag', 0) # Turns off Gurobi logs for cleaner output
+        model = gp.Model("multi_objective_cc")
+        model.setParam('OutputFlag', 0)
 
         nodes = list(G.nodes())
-        x = {}
-        # BUG FIX: Use tuple(sorted(...)) to create consistent keys for variables
-        for i, j in combinations(nodes, 2):
-            key = tuple(sorted((i, j)))
-            x[key] = model.addVar(vtype=GRB.BINARY, name=f"x_{key[0]}_{key[1]}")
-        
-        print(f"  - {len(x)} decision variables created.")
 
-        objective = gp.LinExpr()
+        # --- STAGE 1: Decision Variables ---
+        # y_i = 1 if node i is a cluster representative
+        y = model.addVars(nodes, vtype=GRB.BINARY, name="y")
+        # z_ij = 1 if node j is assigned to the cluster represented by i
+        z = model.addVars(nodes, nodes, vtype=GRB.BINARY, name="z")
+        
+        print(f"  - Created {len(y)} representative variables ('y').")
+        print(f"  - Created {len(z)} assignment variables ('z').")
+
+        # --- STAGE 2: Structural Constraints ---
+        for j in nodes:
+            # Each node must be assigned to exactly one representative
+            model.addConstr(gp.quicksum(z[i, j] for i in nodes) == 1, name=f"assign_{j}")
+
+        for i in nodes:
+            # A representative must be assigned to itself
+            model.addConstr(z[i, i] == y[i], name=f"self_assign_{i}")
+            for j in nodes:
+                # A node can only be assigned to an active representative
+                if i != j:
+                    model.addConstr(z[i, j] <= y[i], name=f"consistency_{i}_{j}")
+
+        print("  - Added structural constraints for the representative model.")
+
+        # --- STAGE 3: Linearization Variables and Constraints ---
+        # w_abk = 1 if nodes 'a' and 'b' are BOTH in the cluster of 'k'
+        w = model.addVars(combinations(nodes, 2), nodes, vtype=GRB.BINARY, name="w")
+        # s_ab = 1 if nodes 'a' and 'b' are in the SAME cluster (any cluster)
+        s = model.addVars(combinations(nodes, 2), vtype=GRB.BINARY, name="s")
+
+        for a, b in s.keys():
+            # Link 's' to 'w'
+            model.addConstr(s[a, b] == gp.quicksum(w[a, b, k] for k in nodes), name=f"s_def_{a}_{b}")
+            
+            for k in nodes:
+                # Linearization constraints to define 'w' based on 'z'
+                model.addConstr(w[a, b, k] <= z[k, a], name=f"w_lin1_{a}_{b}_{k}")
+                model.addConstr(w[a, b, k] <= z[k, b], name=f"w_lin2_{a}_{b}_{k}")
+                model.addConstr(w[a, b, k] >= z[k, a] + z[k, b] - 1, name=f"w_lin3_{a}_{b}_{k}")
+
+        print("  - Added linearization constraints.")
+
+        # --- STAGE 4: Multi-Objective Function (Weighted Sum) ---
+        # Objective 1: Minimize expected disagreement (f1)
+        f1_disagreement = gp.LinExpr()
         for u, v, data in G.edges(data=True):
             p_e = data['positive_prob']
             w_e = data['weight']
-            
             key = tuple(sorted((u, v)))
-            var_x = x[key]
             
-            objective += w_e * (p_e * var_x + (1 - p_e) * (1 - var_x))
-            
-        model.setObjective(objective, GRB.MINIMIZE)
-        print("  - Objective function built.")
+            # (1 - s_ab) is 1 if they are in DIFFERENT clusters
+            # s_ab is 1 if they are in the SAME cluster
+            f1_disagreement += w_e * (p_e * (1 - s[key]) + (1 - p_e) * s[key])
 
-        constraint_count = 0
-        # BUG FIX: The loop was (i, j, j), now it is (i, j, k)
-        for i, j, k in combinations(nodes, 3):
-            # BUG FIX: Use consistent keys to access variables
-            key_ij = tuple(sorted((i, j)))
-            key_jk = tuple(sorted((j, k)))
-            key_ik = tuple(sorted((i, k)))
-            
-            model.addConstr(x[key_ij] + x[key_jk] >= x[key_ik])
-            model.addConstr(x[key_ik] + x[key_jk] >= x[key_ij])
-            model.addConstr(x[key_ij] + x[key_ik] >= x[key_jk])
-            constraint_count += 3
+        # Objective 2: Minimize number of clusters (f2)
+        f2_num_clusters = gp.quicksum(y[i] for i in nodes)
         
-        print(f"  - {constraint_count} triangular inequality constraints added.")
+        # NOTE: For a rigorous academic paper, f1 and f2 should be normalized before combining.
+        # For this implementation, we use a direct weighted sum as a strong starting point.
+        lambda_val = lambda_weight
+        model.setObjective(lambda_val * f1_disagreement + (1 - lambda_val) * f2_num_clusters, GRB.MINIMIZE)
+        
+        print("  - Multi-objective function built.")
 
+        # --- STAGE 5: Optimize and Process Results ---
         model.setParam('TimeLimit', time_limit)
-        print(f"\nStarting optimization with a time limit of {time_limit} seconds...")
+        print(f"\nStarting optimization with lambda = {lambda_val} and time limit = {time_limit}s...")
         model.optimize()
         print("Optimization finished.")
 
-        if model.Status == GRB.OPTIMAL or model.Status == GRB.TIME_LIMIT:
-            objective_value = model.ObjVal
-            execution_time = model.Runtime
-
-            clusters = _reconstruct_clusters(nodes, x)
+        if model.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
+            clusters = _reconstruct_clusters_from_representatives(nodes, z)
             
-            print(f"  - Minimum expected imbalance: {objective_value:.4f}")
-            print(f"  - Execution time: {execution_time:.2f}s")
-            print(f"  - Number of clusters found: {len(set(clusters.values()))}")
+            print(f"\n--- Optimization Results ---")
+            print(f"  - Combined Objective Value: {model.ObjVal:.4f}")
+            print(f"  - Solver Execution Time: {model.Runtime:.2f}s")
+            print(f"  - Number of Clusters Found: {len(set(clusters.values()))}")
             
-            return clusters, objective_value, execution_time
+            return clusters, model.ObjVal, model.Runtime
         else:
             print(f"Could not find an optimal solution. Status code: {model.Status}")
             return None, None, None
 
-    except gp.GurobiError as e:
-        print(f"Gurobi error: {e.code} ({e.message})")
-        return None, None, None
     except Exception as e:
         print(f"An unexpected error occurred during optimization: {e}")
         return None, None, None
 
-def _reconstruct_clusters(nodes: list, x: dict) -> dict:
-    """Helper function to convert the x_ij decision variables into a final partition."""
-    cluster_graph = nx.Graph()
-    cluster_graph.add_nodes_from(nodes)
-    
-    for key, var in x.items():
-        if var.X < 0.5: # If x_ij is 0, nodes are in the same cluster
-            cluster_graph.add_edge(key[0], key[1])
-    
-    connected_components = list(nx.connected_components(cluster_graph))
-    
+def _reconstruct_clusters_from_representatives(nodes: list, z: dict) -> dict:
+    """
+    [English]
+    Helper function to convert the z_ij decision variables into a final partition,
+    mapping each node to its representative's ID.
+
+    [Português]
+    Função auxiliar para converter as variáveis de decisão z_ij na partição final,
+    mapeando cada nó ao ID do seu representante.
+    """
     cluster_map = {}
-    for i, cluster in enumerate(connected_components):
-        for node in cluster:
-            cluster_map[node] = i
-    
+    # Find all nodes that are representatives (y_i = 1, which means z_ii = 1)
+    representatives = {i for i, j in z.keys() if i == j and z[i,j].X > 0.5}
+
+    for j in nodes:
+        for i in representatives:
+            # For each node 'j', find the representative 'i' it was assigned to
+            if z[i, j].X > 0.5:
+                cluster_map[j] = i
+                break
     return cluster_map
