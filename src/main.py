@@ -94,15 +94,16 @@ def main():
         
         # Save execution statistics
         total_time = time.time() - start_time
-        stats_txt_path = os.path.join(args.output_dir, f"{result_prefix}_stats.txt")
+        stats_txt_path = os.path.join(args.output_dir, f"{base_name}_stats.txt")
         with open(stats_txt_path, 'w') as f:
             f.write(f"--- Execution Statistics ---\n")
             f.write(f"Instance: {args.data}\n")
             f.write(f"Lambda Weight: {args.lambda_weight}\n")
-            f.write(f"Combined Objective Value: {obj_val}\n")
-            f.write(f"Solver Execution Time (s): {exec_time}\n")
-            f.write(f"Total Script Time (s): {total_time}\n")
-            f.write(f"Number of Clusters Found: {len(set(clusters.values()))}\n")
+            # CORREÇÃO: Vamos usar um nome de chave mais simples e sem espaços extras.
+            f.write(f"Objective_Value: {obj_val}\n")
+            f.write(f"Solver_Execution_Time_s: {exec_time}\n")
+            f.write(f"Number_of_Clusters: {len(set(clusters.values()))}\n")
+            f.write(f"Total_Script_Time_s: {total_time}\n")
         print(f"  - Execution stats saved to: {stats_txt_path}")
     
     except Exception as e:
