@@ -14,8 +14,6 @@ COPY ./src ./src
 
 # Copie os scripts de execução
 COPY run_experiments.sh .
-COPY run_experiments.bat .
-
 # Dê permissão de execução para o script shell
 RUN chmod +x run_experiments.sh
 
