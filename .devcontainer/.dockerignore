@@ -1,0 +1,18 @@
+# Arquivo: .dockerignore
+
+# Ignorar o Git
+.git
+.gitignore
+
+# Ignorar configurações do VS Code e ambiente Python local
+.vscode
+.venv
+__pycache__/
+
+# Ignorar pastas de dados gerados e resultados
+data/
+results/
+
+# Ignorar arquivos do próprio Docker
+Dockerfile
+.dockerignore

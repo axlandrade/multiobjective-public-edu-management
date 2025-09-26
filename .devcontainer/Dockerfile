@@ -1,5 +1,5 @@
 # Use uma imagem oficial e leve do Python como base
-FROM python:3.12-slim
+FROM mcr.microsoft.com/devcontainers/python:3.12
 
 # Defina o diretório de trabalho dentro do container
 WORKDIR /workspace
@@ -9,11 +9,10 @@ WORKDIR /workspace
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie o código-fonte da sua aplicação para o container
-COPY ./src ./src
+# --- MELHORIA ---
+# Copie todo o contexto do projeto (respeitando o .dockerignore)
+COPY . .
 
-# Copie os scripts de execução
-COPY run_experiments.sh .
 # Dê permissão de execução para o script shell
 RUN chmod +x run_experiments.sh
 
