@@ -75,6 +75,19 @@ def evaluate_fitness(
 
     return disagreement, num_clusters
 
+def setup_genetic_algorithm(nodes: List[str], G: nx.MultiGraph):
+    """
+    [English]
+    Configures the DEAP toolbox for the Multi-Objective Genetic Algorithm (NSGA-II).
+
+    [Português]
+    Configura a toolbox do DEAP para o Algoritmo Genético Multiobjetivo (NSGA-II).
+    """
+
+    # --- 1. Define the fitness and individual structure ---
+    # [English] Create the Individual class, which is a list with the defined fitness.
+    # [Português] Cria a classe indivíduo, que é uma lista com o fitness definido.
+
 # --- Test Block ---
 if __name__ == "__main__":
     print("--- Running test for evaluate_fitness function ---")
