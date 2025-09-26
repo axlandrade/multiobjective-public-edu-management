@@ -1,7 +1,11 @@
 # src/genetic_algorithm.py
 
+# --- Imports ---
+
 import networkx as nx
 from typing import List, Dict, Tuple
+from deap import base, creator, tools, algorithms
+import random
 
 def evaluate_fitness(
     chromosome: List[int], 
