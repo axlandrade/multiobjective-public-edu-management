@@ -85,8 +85,51 @@ def setup_genetic_algorithm(nodes: List[str], G: nx.MultiGraph):
     """
 
     # --- 1. Define the fitness and individual structure ---
-    # [English] Create the Individual class, which is a list with the defined fitness.
-    # [Português] Cria a classe indivíduo, que é uma lista com o fitness definido.
+    # [English] Create a fitness object that minimizes two objectives.
+    # [Português] Cria um objeto de aptidão que minimiza dois objetivos.
+    creator.create("FitnessMulti", base.Fitness, weights=(-1.0, -1.0))
+
+    # [English] Create  the Individual class, which is a list with the defined fitness.
+    # [Português] Cria a classe Individual, que é uma lista com a aptidão definida.
+    creator.create("Individual", list, fitness=creator.FitnessMulti)
+
+    # --- 2. Initialize the DEAP toolbox ---
+    toolbox = base.Toolbox()
+
+    # [English] Map integer indices to node names, needed for the evaluation function.
+    # [Português] Mapeia índices inteiros para nomes de nós, necessário para a função de avaliação.
+    int_to_node = {i: name for i, name in enumerate(nodes)}
+    num_nodes = len(nodes)
+
+    # --- 3. Register the Genetic Operators ---
+
+    # [English] Attribute generator: creates a random integer from 0 to num_nodes-1.
+    # [Português] Gerador de atributo: cria um inteiro aleatório de 0 a num_nodes-1.
+    toolbox.register("attr_int", random.randint, 0, num_nodes - 1)
+
+    # [English] Individual generator: creates a chromosome by running attr_int 'num_nodes' times.
+    # [Português] Gerador de indivíduo: cria um cromossomo executando attr_int 'num_nodes' vezes.
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=num_nodes)
+
+    # [English] Population generator: creates a list of individuals.
+    # [Português] Gerador de população: cria uma lista de indivíduos.
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+    # [English] Register the evaluation function with the graph and node mapping.
+    # [Português] Registra a função de avaliação com o grafo e o mapeamento de nós.
+    toolbox.register("evaluate", evaluate_fitness, nodes_map=int_to_node, G=G)
+
+    # [English] Register the standard genetic operators.
+    # [Português] Registra os operadores genéticos padrão.
+    toolbox.register("evaluate", evaluate_fitness, nodes_map=int_to_node, G=G)
+
+    # [English] Register the standard genetic operators.
+    # [Português] Registra os operadores genéticos padrão.
+    toolbox.register("mate", tools.cxTwoPoint) # Crossover
+    toolbox.register("mutate", tools.mutUniformInt, low=0, up=num_nodes - 1, indpb=0.1) # Mutation
+    toolbox.register("select", tools.selNSGA2) # Selection (NSGA-II)
+
+    return toolbox
 
 # --- Test Block ---
 if __name__ == "__main__":
@@ -124,3 +167,16 @@ if __name__ == "__main__":
     # Agora a verificação manual usa os valores corretos do grafo de teste
     expected_f1 = (1 - 0.1) + (0.2) + (0.3) + (1 - 0.8) # 0.9 + 0.2 + 0.3 + 0.2 = 1.6
     print(f"\nManual check: Expected Disagreement should be {expected_f1:.4f}. -> {'OK' if abs(f1 - expected_f1) < 1e-9 else 'FAIL'}")
+
+    print(f"\n--- Running Test for GA Toolbox Setup ---")
+    G_test = nx.Graph()
+    G_test.add_nodes_from(['A', 'B', 'C', 'D'])
+    test_nodes = list(G_test.nodes())
+
+    toolbox = setup_genetic_algorithm(test_nodes, G_test)
+    
+    # Create a sample individual
+    ind = toolbox.individual()
+    
+    print(f"Generated a sample individual (chromosome): {ind}")
+    print(f"Length of chromosome is {len(ind)}, which should be {len(test_nodes)}. -> {'OK' if len(ind) == len(test_nodes) else 'FAIL'}")
