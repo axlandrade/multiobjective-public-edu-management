@@ -1,5 +1,5 @@
 # Use uma imagem oficial e leve do Python como base
-FROM mcr.microsoft.com/devcontainers/python:3.12
+FROM mcr.microsoft.com/devcontainers/python:3.11
 
 # Defina o diretório de trabalho dentro do container
 WORKDIR /workspace

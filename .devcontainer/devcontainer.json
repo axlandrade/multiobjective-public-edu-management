@@ -1,5 +1,5 @@
 {
-    "name": "Python 3.12 - Corruption Network Analysis",
+    "name": "Python 3.11 - Corruption Network Analysis",
     "build": {
         "context": "..",
         "dockerfile": "Dockerfile"

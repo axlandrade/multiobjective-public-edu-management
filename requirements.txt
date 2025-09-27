@@ -1,8 +1,8 @@
 pandas
+numpy
 networkx
 matplotlib
 gurobipy
-numpy
 jupyter
 notebook
 deap
