@@ -7,15 +7,14 @@ import networkx as nx
 import os
 import pandas as pd
 import time
-import multiprocessing  # --- ALTERAÇÃO 1: Importar a biblioteca ---
+import multiprocessing
+import json
 
 from deap import base, creator, tools, algorithms
 
 # Import our custom modules
 from graph_constructor import build_multigraph_from_csv
 from genetic_algorithm import setup_genetic_algorithm
-
-# A função main() continua exatamente a mesma...
 
 
 def main():
@@ -60,12 +59,8 @@ def main():
     nodes = sorted(list(G.nodes()))
     toolbox = setup_genetic_algorithm(nodes, G)
 
-    # --- ALTERAÇÃO 2: Configurar o Pool de Processamento Paralelo ---
-    # [English] Setup a multiprocessing pool.
-    # [Português] Configura um pool de processos para execução paralela.
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
-    # ----------------------------------------------------------------
 
     print("\n--- Genetic Algorithm Parameters ---")
     print(f"Population Size: {args.pop_size}")
@@ -96,40 +91,57 @@ def main():
         verbose=True
     )
 
-    # --- ALTERAÇÃO 3: Fechar o Pool ao final ---
     pool.close()
-    # ---------------------------------------------
-
     print("--- Evolution Finished ---")
 
-    # --- 4. Save and Print the Final Pareto Front ---
-    # (O restante do código para salvar e imprimir continua igual)
+    # --- ALTERAÇÃO PRINCIPAL AQUI ---
+    # --- 4. Save and Print the Final Pareto Front (Scores and Partitions) ---
     total_time_minutes = (time.time() - start_time) / 60
     print(
         f"\n--- Found {len(hof)} Non-Dominated Solutions (Total Time: {total_time_minutes:.2f} minutes) ---")
 
+    os.makedirs(args.output_dir, exist_ok=True)
+    instance_name = os.path.splitext(os.path.basename(args.data))[0]
+
     pareto_data = []
+    solution_partitions = {}
+    solution_counter = 0
+
     for ind in hof:
         f1_disagreement, f2_clusters = ind.fitness.values
+        solution_id = f"solution_{solution_counter}"
+
         pareto_data.append({
+            'solution_id': solution_id,
             'num_clusters_f2': int(f2_clusters),
             'disagreement_f1': f1_disagreement
         })
+        # [English] Store the chromosome (the partition) itself, which is a list of integers.
+        # [Português] Armazena o cromossomo (a partição) em si, que é uma lista de inteiros.
+        solution_partitions[solution_id] = list(ind)
+        solution_counter += 1
 
-    df_pareto = pd.DataFrame(pareto_data)
-    df_pareto = df_pareto.sort_values(by=['num_clusters_f2']).drop_duplicates()
-
-    os.makedirs(args.output_dir, exist_ok=True)
-    instance_name = os.path.splitext(os.path.basename(args.data))[0]
+    # Save the scores to a CSV file
+    df_pareto = pd.DataFrame(pareto_data).sort_values(
+        by=['num_clusters_f2']).drop_duplicates()
     pareto_csv_path = os.path.join(
         args.output_dir, f"pareto_{instance_name}.csv")
     df_pareto.to_csv(pareto_csv_path, index=False)
-    print(f"  - Pareto front saved to: {pareto_csv_path}")
+    print(f"  - Pareto front scores saved to: {pareto_csv_path}")
 
-    print("\nNum_Clusters (f2) | Disagreement (f1)")
-    print("---------------------------------------")
+    # Save the full partitions to a JSON file for qualitative analysis
+    partitions_path = os.path.join(
+        args.output_dir, f"partitions_{instance_name}.json")
+    with open(partitions_path, 'w') as f:
+        json.dump(solution_partitions, f, indent=4)
+    print(f"  - Solution partitions saved to: {partitions_path}")
+
+    # Print a summary to the console
+    print("\nSolution ID      | Num_Clusters (f2) | Disagreement (f1)")
+    print("-------------------------------------------------------------")
     for index, row in df_pareto.iterrows():
-        print(f"{row['num_clusters_f2']:>16} | {row['disagreement_f1']:<18.4f}")
+        print(
+            f"{row['solution_id']:<16} | {row['num_clusters_f2']:>17} | {row['disagreement_f1']:<18.4f}")
 
 
 if __name__ == '__main__':
