@@ -9,6 +9,9 @@ WORKDIR /workspace
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Instala o tmux e outras utilidades de sistema
+RUN apt-get update && apt-get install -y tmux
+
 # --- MELHORIA ---
 # Copie todo o contexto do projeto (respeitando o .dockerignore)
 COPY . .
