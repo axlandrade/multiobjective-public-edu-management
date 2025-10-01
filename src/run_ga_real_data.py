@@ -94,13 +94,13 @@ def main():
     pool.close()
     print("--- Evolution Finished ---")
 
-    # --- ALTERAÇÃO PRINCIPAL AQUI ---
     # --- 4. Save and Print the Final Pareto Front (Scores and Partitions) ---
     total_time_minutes = (time.time() - start_time) / 60
     print(
         f"\n--- Found {len(hof)} Non-Dominated Solutions (Total Time: {total_time_minutes:.2f} minutes) ---")
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    output_dir = args.output_dir
+    os.makedirs(output_dir, exist_ok=True)
     instance_name = os.path.splitext(os.path.basename(args.data))[0]
 
     pareto_data = []
@@ -116,8 +116,6 @@ def main():
             'num_clusters_f2': int(f2_clusters),
             'disagreement_f1': f1_disagreement
         })
-        # [English] Store the chromosome (the partition) itself, which is a list of integers.
-        # [Português] Armazena o cromossomo (a partição) em si, que é uma lista de inteiros.
         solution_partitions[solution_id] = list(ind)
         solution_counter += 1
 
@@ -135,6 +133,25 @@ def main():
     with open(partitions_path, 'w') as f:
         json.dump(solution_partitions, f, indent=4)
     print(f"  - Solution partitions saved to: {partitions_path}")
+
+    # --- NOVO BLOCO PARA SALVAR ESTATÍSTICAS ---
+    # [English] Save execution summary (parameters and time) to a JSON file.
+    # [Português] Salva o sumário da execução (parâmetros e tempo) em um arquivo JSON.
+    stats_data = {
+        'instance_file': args.data,
+        'population_size': args.pop_size,
+        'generations': args.ngen,
+        'crossover_probability': args.cxpb,
+        'mutation_probability': args.mutpb,
+        'total_execution_time_minutes': round(total_time_minutes, 2),
+        'num_pareto_solutions': len(hof)
+    }
+    stats_path = os.path.join(
+        args.output_dir, f"stats_{instance_name}.json")
+    with open(stats_path, 'w') as f:
+        json.dump(stats_data, f, indent=4)
+    print(f"  - Execution stats saved to: {stats_path}")
+    # --- FIM DO NOVO BLOCO ---
 
     # Print a summary to the console
     print("\nSolution ID      | Num_Clusters (f2) | Disagreement (f1)")
