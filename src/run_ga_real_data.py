@@ -7,12 +7,15 @@ import networkx as nx
 import os
 import pandas as pd
 import time
+import multiprocessing  # --- ALTERAÇÃO 1: Importar a biblioteca ---
 
 from deap import base, creator, tools, algorithms
 
 # Import our custom modules
 from graph_constructor import build_multigraph_from_csv
 from genetic_algorithm import setup_genetic_algorithm
+
+# A função main() continua exatamente a mesma...
 
 
 def main():
@@ -32,7 +35,6 @@ def main():
     parser.add_argument('--output_dir', default='results_real_data',
                         help="Directory to save the results.")
 
-    # --- New Configurable GA Parameters ---
     parser.add_argument('--pop_size', type=int, default=300,
                         help="Population size for the GA.")
     parser.add_argument('--ngen', type=int, default=200,
@@ -46,7 +48,7 @@ def main():
 
     start_time = time.time()
     print("="*60)
-    print("STARTING GENETIC ALGORITHM ANALYSIS ON REAL-WORLD DATA")
+    print("STARTING PARALLEL GENETIC ALGORITHM ANALYSIS ON REAL-WORLD DATA")
     print("="*60)
 
     # --- 1. Load Data and Setup ---
@@ -58,7 +60,13 @@ def main():
     nodes = sorted(list(G.nodes()))
     toolbox = setup_genetic_algorithm(nodes, G)
 
-    # --- 2. Genetic Algorithm Parameters (from command line) ---
+    # --- ALTERAÇÃO 2: Configurar o Pool de Processamento Paralelo ---
+    # [English] Setup a multiprocessing pool.
+    # [Português] Configura um pool de processos para execução paralela.
+    pool = multiprocessing.Pool()
+    toolbox.register("map", pool.map)
+    # ----------------------------------------------------------------
+
     print("\n--- Genetic Algorithm Parameters ---")
     print(f"Population Size: {args.pop_size}")
     print(f"Number of Generations: {args.ngen}")
@@ -66,7 +74,7 @@ def main():
     print(f"Mutation Probability: {args.mutpb}")
 
     # --- 3. Run the NSGA-II Algorithm ---
-    print("\n--- Starting Evolution (NSGA-II) ---")
+    print("\n--- Starting Evolution (NSGA-II) in Parallel ---")
 
     pop = toolbox.population(n=args.pop_size)
     hof = tools.ParetoFront()
@@ -88,9 +96,14 @@ def main():
         verbose=True
     )
 
+    # --- ALTERAÇÃO 3: Fechar o Pool ao final ---
+    pool.close()
+    # ---------------------------------------------
+
     print("--- Evolution Finished ---")
 
     # --- 4. Save and Print the Final Pareto Front ---
+    # (O restante do código para salvar e imprimir continua igual)
     total_time_minutes = (time.time() - start_time) / 60
     print(
         f"\n--- Found {len(hof)} Non-Dominated Solutions (Total Time: {total_time_minutes:.2f} minutes) ---")
