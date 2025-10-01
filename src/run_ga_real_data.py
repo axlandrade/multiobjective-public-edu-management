@@ -38,9 +38,9 @@ def main():
                         help="Population size for the GA.")
     parser.add_argument('--ngen', type=int, default=200,
                         help="Number of generations for the GA.")
-    parser.add_argument('--cxpb', type=float, default=0.8,
+    parser.add_argument('--cxpb', type=float, default=0.5,
                         help="Crossover probability.")
-    parser.add_argument('--mutpb', type=float, default=0.2,
+    parser.add_argument('--mutpb', type=float, default=0.5,
                         help="Mutation probability.")
 
     args = parser.parse_args()
