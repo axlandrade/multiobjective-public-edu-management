@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y tmux
 COPY . .
 
 # Dê permissão de execução para o script shell
-RUN chmod +x run_experiments.sh
+# RUN chmod +x run_experiments.sh
 
 # Defina o comando padrão para abrir um terminal
 CMD ["/bin/bash"]
