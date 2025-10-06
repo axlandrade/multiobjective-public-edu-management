@@ -54,7 +54,7 @@ def main():
     """
     # --- Configuration ---
     input_dir = 'data'
-    input_filename = 'contratos_33510783000140_enriquecido.csv'
+    input_filename = 'contratos_enriquecidos.csv'
     output_filename = 'rede_real_input.csv'
 
     input_path = os.path.join(input_dir, input_filename)
