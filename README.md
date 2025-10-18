@@ -1,132 +1,108 @@
-# Dynamic Analysis of Corruption Networks with Structural Balance on Multigraphs
+# Detecção de Redes de Corrupção com Otimização Multiobjetivo em Multigrafos
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+Este projeto é a implementação computacional da dissertação de mestrado "Otimização Multiobjetivo em Multigrafos para Detecção de Redes de Corrupção: Uma Análise Comparativa entre Métodos Exatos e Heurísticos". O objetivo é aplicar o problema de *Correlation Clustering* (CC) em uma rede de contratos públicos modelada como um multigrafo para identificar potenciais grupos de risco.
 
-> A multi-objective mathematical optimization model for the dynamic analysis of corruption networks, using Structural Balance theory on multigraphs.
+O framework implementa duas abordagens de solução e uma interface gráfica interativa para análise.
 
-This repository contains the code and documentation for the research developed in the Master's thesis of **Axl Silva de Andrade**, as part of the Graduate Program in Mathematical and Computational Modeling at UFRRJ. The entire development environment is containerized using Docker and VS Code Dev Containers for simple, one-click setup and perfect reproducibility.
+## ✨ Funcionalidades
 
----
+- **Modelo Exato (PLI):** Uma formulação de Programação Linear Inteira utilizando `gurobipy` para encontrar a solução ótima do problema. Ideal para validação em instâncias de pequena escala.
+- **Modelo Heurístico (AG):** Uma meta-heurística baseada no Algoritmo Genético Multiobjetivo (NSGA-II) com a biblioteca `DEAP`, projetada para escalar em redes de grande porte.
+- **Interface Gráfica Interativa:** Um dashboard desenvolvido com **Streamlit** que permite executar ambos os modelos, ajustar parâmetros, visualizar a fronteira de Pareto e inspecionar os clusters resultantes de forma interativa.
+- **Geração de Dados:** Scripts para gerar instâncias sintéticas baseadas no trabalho de Ponciano (2017) e para processar dados reais de contratos.
 
-## Table of Contents
+## 📂 Estrutura do Projeto
 
-- [About the Project](#about-the-project)
-- [Core Concepts](#core-concepts)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Usage](#usage)
-- [Project Structure](#project-structure)
-- [License](#license)
-- [Contact and Citation](#contact-and-citation)
+O projeto está organizado da seguinte forma:
 
----
+.
+├── .devcontainer/
+│   └── devcontainer.json   # Configuração do ambiente de desenvolvimento Docker
+├── data/
+│   ├── contratos_enriquecidos.csv # (Exemplo) Dados brutos de contratos
+│   └── ...                   # Arquivos de rede gerados (.csv)
+├── experiments/
+│   ├── exact/                # Scripts para o modelo exato
+│   └── heuristic/            # Scripts para o modelo heurístico
+├── src/
+│   ├── graph_constructor.py  # Módulo para construir o grafo a partir dos dados
+│   ├── optimization_model.py # Implementação do modelo exato (PLI)
+│   ├── genetic_algorithm.py  # Implementação da lógica do AG
+│   └── ...
+├── app.py                    # Script principal da interface gráfica (Streamlit)
+├── requirements.txt          # Dependências Python
+└── README.md                 # Este arquivo
 
-## About the Project
 
-Detecting corruption in public procurement is a complex challenge. Models based on simple graphs, which represent the relationship between two entities with a single edge, lose valuable information about the dynamics and frequency of contractual interactions.
+## 🚀 Como Começar
 
-This project addresses this limitation by proposing a **multi-objective optimization model** based on **Probabilistic Structural Balance** theory and **multigraphs**. The goal is to explore the trade-off between two conflicting objectives:
-1.  **Minimizing Disagreement:** Finding the most mathematically consistent clusters based on the probabilistic risk of each contract.
-2.  **Minimizing the Number of Clusters:** Producing simpler, more interpretable results.
+A maneira recomendada de executar este projeto é utilizando o ambiente de desenvolvimento em contêiner (Dev Container) com VS Code, que garante que todas as dependências e configurações estejam corretas.
 
-This approach allows for a dynamic and nuanced analysis, identifying the evolution of *State Capture* clusters rather than just a static snapshot.
+### Pré-requisitos
 
----
+1.  **Docker Desktop** instalado.
+2.  **Visual Studio Code** com a extensão [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
-## Core Concepts
+### Instalação
 
-* **Structural Balance:** A theory from social psychology that posits that networks tend to organize into groups with internal cohesion and external hostility.
-* **Correlation Clustering (CC):** An optimization problem that seeks the best partition of a graph to minimize "disagreement".
-* **Multigraph:** A graph structure that allows multiple parallel edges between the same pair of vertices, ideal for modeling repeated contracts.
-* **Multi-Objective Optimization:** A technique used to find a set of optimal solutions (a Pareto front) that represent the best possible trade-offs between two or more conflicting objectives.
-
----
-
-## Getting Started
-
-This project is configured to run inside a **Dev Container**, which automates the entire setup process.
-
-### Prerequisites
-
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
-* [Visual Studio Code](https://code.visualstudio.com/)
-* The [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code.
-* A valid license for the Gurobi Optimizer.
-
-### Installation
-
-The installation is fully automated by VS Code.
-
-1.  **Clone the repository:**
-    ```sh
-    git clone [https://github.com/axlandrade/dynamic-corruption-detection.git](https://github.com/axlandrade/dynamic-corruption-detection.git)
+1.  Clone este repositório:
+    ```bash
+    git clone https://github.com/axlandrade/dynamic-corruption-detection.git
     cd dynamic-corruption-detection
     ```
+2.  Abra a pasta do projeto no VS Code.
+3.  O VS Code detectará o arquivo `.devcontainer/devcontainer.json` e sugerirá reabrir o projeto em um contêiner. Clique em **"Reopen in Container"**.
+4.  Aguarde enquanto o ambiente é construído. Os pacotes do `requirements.txt` serão instalados automaticamente.
 
-2.  **Open the folder in VS Code.**
+## 💻 Como Usar
 
-3.  **Reopen in Container:** A notification will appear in the bottom-right corner. Click on **"Reopen in Container"**.
+Existem duas maneiras principais de interagir com o projeto: através da interface gráfica (recomendado) ou diretamente pela linha de comando.
 
-That's it. VS Code will now build the Docker image, install all Python dependencies from `requirements.txt`, and launch a fully configured development environment.
+### 1. Usando a Interface Gráfica (Streamlit)
 
----
+Esta é a forma mais fácil e visual de executar os experimentos e analisar os resultados.
 
-## Usage
+1.  Abra um terminal no VS Code (que já estará dentro do contêiner).
+2.  Execute o seguinte comando na pasta raiz do projeto:
 
-Once the Dev Container is running, all commands should be executed from the **integrated terminal in VS Code**.
+    ```bash
+    streamlit run app.py
+    ```
+3.  Seu navegador abrirá automaticamente com o dashboard, onde você poderá:
+    - Fazer o upload de um arquivo de rede `.csv`.
+    - Escolher entre a análise **Exata** ou **Heurística**.
+    - Ajustar os parâmetros específicos de cada modelo.
+    - Executar a análise e visualizar os resultados interativamente.
 
-1.  **Generate the Research Instances:**
-    The first step is to generate the multigraph `.csv` files based on the data from Ponciano (2017).
-    ```sh
+### 2. Usando a Linha de Comando
+
+Para execuções em lote ou testes específicos, você pode usar os scripts diretamente.
+
+#### Preparando os Dados
+
+-   **Para gerar as instâncias sintéticas:**
+    ```bash
     python src/instance_generator.py
     ```
-    This will populate the `/data` folder with 10 files, from `run1_P1_k5.csv` to `run1_P10_k5.csv`.
-
-2.  **Run a Single Experiment:**
-    To test a single instance with a specific trade-off parameter (`lambda`), use the `main.py` script.
-    ```sh
-    # Example: Run instance P1 with a balance between objectives (lambda=0.5)
-    python src/main.py --data data/run1_P1_k5.csv --output_dir results/run1_P1_k5_lambda_0.5 --lambda_weight 0.5
+-   **Para processar os dados reais e criar o arquivo de rede:**
+    ```bash
+    python src/create_real_network.py
     ```
 
-3.  **Run the Full Batch of Experiments:**
-    To execute all 50 experiments (10 instances x 5 lambda values), use the provided shell script.
-    ```sh
-    ./run_experiments.sh
+#### Executando os Experimentos
+
+-   **Modelo Heurístico (AG):**
+    Execute o script na pasta `experiments/heuristic/` passando o caminho do arquivo de dados.
+    ```bash
+    python experiments/heuristic/run_genetic_algorithm.py --data data/run1_P4_k5.csv
     ```
-    Results for each run will be saved in a dedicated subfolder within the `/results` directory, ready for analysis.
 
----
-
-## Project Structure
-
-```
-.
-├── .devcontainer/    # VS Code Dev Container configuration (json, Dockerfile)
-├── data/             # Input data files (.csv)
-├── src/              # Python source code (.py)
-├── results/          # Output files (tables, images) - Ignored by Git
-|
-├── .gitignore        # Specifies files for Git to ignore
-├── LICENSE           # Project license (MIT)
-├── README.md         # This file
-├── requirements.txt  # Python package dependencies
-└── run_experiments.sh # Script to run all experiments
-```
-
----
-
-## License
-
-This project is licensed under the MIT License - see the `LICENSE` file for more details.
-
----
-
-## Contact and Citation
-
-Axl Silva de Andrade - [axlsandrade.ufrrj@gmail.com]
-
-<!---If you use this work in your research, please cite the dissertation:
-
-> Andrade, A. S. (2026). *Dynamic Analysis of Corruption Networks with Structural Balance on Multigraphs*. Master's Thesis, Graduate Program in Mathematical and Computational Modeling, Federal Rural University of Rio de Janeiro, Seropédica, RJ, Brazil.--->
+-   **Modelo Exato (PLI):**
+    O script `run_sintetic.sh` é um exemplo de como executar o modelo exato para todas as instâncias sintéticas com diferentes valores de lambda.
+    ```bash
+    bash run_sintetic.sh
+    ```
+    Para executar em um arquivo específico (como os dados reais), use o script dedicado:
+    ```bash
+    python experiments/exact/run_exact_real.py --lambda_weight 0.5 --time_limit 3600
+    ```

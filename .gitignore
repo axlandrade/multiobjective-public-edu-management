@@ -228,3 +228,5 @@ results_old/
 results_real_data/
 
 .vscode/
+
+temp_network_ui.csv
