@@ -6,3 +6,5 @@ gurobipy
 jupyter
 notebook
 deap
+streamlit
+plotly
