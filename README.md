@@ -16,22 +16,22 @@ O framework implementa duas abordagens de solução e uma interface gráfica int
 O projeto está organizado da seguinte forma:
 
 .
-├── .devcontainer/
-│   └── devcontainer.json   # Configuração do ambiente de desenvolvimento Docker
-├── data/
-│   ├── contratos_enriquecidos.csv # (Exemplo) Dados brutos de contratos
-│   └── ...                   # Arquivos de rede gerados (.csv)
-├── experiments/
-│   ├── exact/                # Scripts para o modelo exato
-│   └── heuristic/            # Scripts para o modelo heurístico
-├── src/
-│   ├── graph_constructor.py  # Módulo para construir o grafo a partir dos dados
-│   ├── optimization_model.py # Implementação do modelo exato (PLI)
-│   ├── genetic_algorithm.py  # Implementação da lógica do AG
-│   └── ...
-├── app.py                    # Script principal da interface gráfica (Streamlit)
-├── requirements.txt          # Dependências Python
-└── README.md                 # Este arquivo
++-- .devcontainer/
+|   +-- devcontainer.json   # Configuração do ambiente de desenvolvimento Docker
++-- data/
+|   +-- contratos_enriquecidos.csv # (Exemplo) Dados brutos de contratos
+|   +-- ...                   # Arquivos de rede gerados (.csv)
++-- experiments/
+|   +-- exact/                # Scripts para o modelo exato
+|   +-- heuristic/            # Scripts para o modelo heurístico
++-- src/
+|   +-- graph_constructor.py  # Módulo para construir o grafo a partir dos dados
+|   +-- optimization_model.py # Implementação do modelo exato (PLI)
+|   +-- genetic_algorithm.py  # Implementação da lógica do AG
+|   +-- ...
++-- app.py                    # Script principal da interface gráfica (Streamlit)
++-- requirements.txt          # Dependências Python
++-- README.md                 # Este arquivo
 
 
 ## 🚀 Como Começar
