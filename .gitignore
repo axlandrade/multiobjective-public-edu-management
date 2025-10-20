@@ -238,3 +238,5 @@ results_ga/
 results_old/
 
 results_real_data/
+
+gurobi.lic
