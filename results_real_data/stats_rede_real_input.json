@@ -1,9 +1,0 @@
-{
-    "instance_file": "data/rede_real_input.csv",
-    "population_size": 2000,
-    "generations": 1000,
-    "crossover_probability": 0.5,
-    "mutation_probability": 0.5,
-    "total_execution_time_minutes": 70.71,
-    "num_pareto_solutions": 1268
-}

@@ -232,3 +232,9 @@ results_real_data/
 temp_network_ui.csv
 
 temp_network_cache.csv
+
+results_ga/
+
+results_old/
+
+results_real_data/

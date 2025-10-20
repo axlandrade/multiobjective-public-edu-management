@@ -1,7 +1,0 @@
---- Execution Statistics ---
-Instance: data/run1_P3_k5.csv
-Lambda Weight: 1.0
-Objective_Value: 17.280200000000036
-Solver_Execution_Time_s: 0.02426600456237793
-Number_of_Clusters: 1
-Total_Script_Time_s: 0.5525891780853271
