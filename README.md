@@ -2,13 +2,13 @@
 
 Este projeto é a implementação computacional da dissertação de mestrado "Otimização Multiobjetivo em Multigrafos para Detecção de Redes de Corrupção: Uma Análise Comparativa entre Métodos Exatos e Heurísticos". O objetivo é aplicar o problema de *Correlation Clustering* (CC) em uma rede de contratos públicos modelada como um multigrafo para identificar potenciais grupos de risco.
 
-O framework implementa duas abordagens de solução e uma interface gráfica interativa para análise.
+O framework implementa duas abordagens de solução e uma interface gráfica desktop para uma análise robusta e interativa.
 
 ## ✨ Funcionalidades
 
-- **Modelo Exato (PLI):** Uma formulação de Programação Linear Inteira utilizando `gurobipy` para encontrar a solução ótima do problema. Ideal para validação em instâncias de pequena escala.
+- **Modelo Exato (PLI):** Uma formulação de Programação Linear Inteira utilizando `gurobipy` para encontrar a solução ótima do problema.
 - **Modelo Heurístico (AG):** Uma meta-heurística baseada no Algoritmo Genético Multiobjetivo (NSGA-II) com a biblioteca `DEAP`, projetada para escalar em redes de grande porte.
-- **Interface Gráfica Interativa:** Um dashboard desenvolvido com **Streamlit** que permite executar ambos os modelos, ajustar parâmetros, visualizar a fronteira de Pareto e inspecionar os clusters resultantes de forma interativa.
+- **Interface Gráfica Desktop:** Um dashboard desenvolvido com **PySide6 (Qt for Python)**, uma aplicação desktop nativa e robusta. É ideal para gerenciar tarefas computacionais de longa duração sem congelar ou perder a sessão, permitindo o acompanhamento do progresso em tempo real.
 - **Geração de Dados:** Scripts para gerar instâncias sintéticas baseadas no trabalho de Ponciano (2017) e para processar dados reais de contratos.
 
 ## 📂 Estrutura do Projeto
@@ -17,8 +17,6 @@ O projeto está organizado da seguinte forma:
 
 ```
     .
-    ├── .devcontainer/
-    │   └── devcontainer.json   # Configuração do ambiente de desenvolvimento Docker
     ├── data/
     │   ├── contratos_enriquecidos.csv # (Exemplo) Dados brutos de contratos
     │   └── ...                   # Arquivos de rede gerados (.csv)
@@ -30,50 +28,64 @@ O projeto está organizado da seguinte forma:
     │   ├── optimization_model.py # Implementação do modelo exato (PLI)
     │   ├── genetic_algorithm.py  # Implementação da lógica do AG
     │   └── ...
-    ├── app.py                    # Script principal da interface gráfica (Streamlit)
+    ├── app.py                    # Script principal da interface gráfica (PySide6)
     ├── requirements.txt          # Dependências Python
     └── README.md                 # Este arquivo
 ```
 
-## 🚀 Como Começar
+## 🚀 Configuração do Ambiente Local
 
-A maneira recomendada de executar este projeto é utilizando o ambiente de desenvolvimento em contêiner (Dev Container) com VS Code, que garante que todas as dependências e configurações estejam corretas.
+Este projeto utiliza um ambiente virtual Python (`venv`) para gerenciar suas dependências de forma isolada.
 
 ### Pré-requisitos
 
-1.  **Docker Desktop** instalado.
-2.  **Visual Studio Code** com a extensão [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+1.  **Python 3.9+** instalado em seu sistema.
+2.  **Git** para clonar o repositório.
+3.  **Gurobi Optimizer:** Uma licença do Gurobi (a [licença acadêmica gratuita](https://www.gurobi.com/academia/academic-program-and-licenses/) é suficiente e recomendada) é necessária para executar o modelo exato.
 
 ### Instalação
 
 1.  Clone este repositório:
     ```bash
-    git clone https://github.com/axlandrade/dynamic-corruption-detection.git
+    git clone [https://github.com/axlandrade/dynamic-corruption-detection.git](https://github.com/axlandrade/dynamic-corruption-detection.git)
     cd dynamic-corruption-detection
     ```
-2.  Abra a pasta do projeto no VS Code.
-3.  O VS Code detectará o arquivo `.devcontainer/devcontainer.json` e sugerirá reabrir o projeto em um contêiner. Clique em **"Reopen in Container"**.
-4.  Aguarde enquanto o ambiente é construído. Os pacotes do `requirements.txt` serão instalados automaticamente.
+
+2.  Crie e ative um ambiente virtual:
+    ```bash
+    # Cria o ambiente
+    python -m venv .venv
+
+    # Ativa o ambiente (Windows PowerShell)
+    .\.venv\Scripts\Activate.ps1
+
+    # Ativa o ambiente (Linux/macOS/Git Bash)
+    source .venv/bin/activate
+    ```
+
+3.  Instale as dependências Python necessárias:
+    ```bash
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
 
 ## 💻 Como Usar
 
-Existem duas maneiras principais de interagir com o projeto: através da interface gráfica (recomendado) ou diretamente pela linha de comando.
+### 1. Usando a Interface Gráfica (Recomendado)
 
-### 1. Usando a Interface Gráfica (Streamlit)
+A aplicação desktop é a forma mais completa de interagir com os experimentos.
 
-Esta é a forma mais fácil e visual de executar os experimentos e analisar os resultados.
-
-1.  Abra um terminal no VS Code (que já estará dentro do contêiner).
+1.  Certifique-se de que seu ambiente virtual (`.venv`) está ativado.
 2.  Execute o seguinte comando na pasta raiz do projeto:
 
     ```bash
-    streamlit run app.py
+    python app.py
     ```
-3.  Seu navegador abrirá automaticamente com o dashboard, onde você poderá:
-    - Fazer o upload de um arquivo de rede `.csv`.
-    - Escolher entre a análise **Exata** ou **Heurística**.
-    - Ajustar os parâmetros específicos de cada modelo.
-    - Executar a análise e visualizar os resultados interativamente.
+3.  A janela do dashboard abrirá, onde você poderá:
+    - Gerar as instâncias sintéticas para validação.
+    - Selecionar uma instância e ajustar os parâmetros do Algoritmo Genético.
+    - Executar o **modo de validação**, que roda o modelo exato e o heurístico em sequência e compara as fronteiras de Pareto.
+    - Acompanhar o progresso em tempo real através da barra de status.
 
 ### 2. Usando a Linha de Comando
 
@@ -93,17 +105,10 @@ Para execuções em lote ou testes específicos, você pode usar os scripts dire
 #### Executando os Experimentos
 
 -   **Modelo Heurístico (AG):**
-    Execute o script na pasta `experiments/heuristic/` passando o caminho do arquivo de dados.
     ```bash
     python experiments/heuristic/run_genetic_algorithm.py --data data/run1_P4_k5.csv
     ```
 
 -   **Modelo Exato (PLI):**
-    O script `run_sintetic.sh` é um exemplo de como executar o modelo exato para todas as instâncias sintéticas com diferentes valores de lambda.
-    ```bash
-    bash run_sintetic.sh
-    ```
-    Para executar em um arquivo específico (como os dados reais), use o script dedicado:
     ```bash
     python experiments/exact/run_exact_real.py --lambda_weight 0.5 --time_limit 3600
-    ```
