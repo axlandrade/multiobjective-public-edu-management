@@ -230,3 +230,5 @@ results_real_data/
 .vscode/
 
 temp_network_ui.csv
+
+temp_network_cache.csv

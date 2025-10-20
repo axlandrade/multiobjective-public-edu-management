@@ -6,5 +6,5 @@ gurobipy
 jupyter
 notebook
 deap
-streamlit
+pyside6
 plotly
