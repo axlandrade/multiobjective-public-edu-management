@@ -16,6 +16,6 @@
                 "mechatroner.rainbow-csv"
             ]
         }
-    },
-    "shutdownAction": "none"
+    }
+    // "shutdownAction": "none"
 }
