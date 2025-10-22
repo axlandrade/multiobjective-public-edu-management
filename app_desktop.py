@@ -313,8 +313,8 @@ class MainWindow(QMainWindow):
             df_e = pd.DataFrame(results['df_exact']); self._populate_table(self.table1, df_e, "Ótima (Exato)")
             df_h = pd.DataFrame(results['df_heuristic']); self._populate_table(self.table2, df_h, "Aproximada (AG)")
             self.current_pareto_df = pd.concat([df_e, df_h]); self.current_partitions = None
-            if not df_e.empty: self.canvas.axes.plot(df_e['num_clusters_f2'], df_e['disagreement_f1'], marker='*', ls='--', label='Ótima (Exato)')
-            if not df_h.empty: self.canvas.axes.scatter(df_h['num_clusters_f2'], df_h['disagreement_f1'], marker='o', label='Aproximada (AG)', s=100)
+            if not df_e.empty: self.canvas.axes.plot(df_e['num_clusters_f2'], df_e['disagreement_f1'], marker='*', ls='--', label='Ótima (Exato)', color='blue')
+            if not df_h.empty: self.canvas.axes.scatter(df_h['num_clusters_f2'], df_h['disagreement_f1'], marker='o', label='Aproximada (AG)', s=100, color='orange')
             self.canvas.axes.set_title("Comparativo de Fronteiras de Pareto"); self.download_button_json.hide()
         else:
             self.run_button.setText("Executar Análise"); self.status_label.setText("Análise Concluída!")
