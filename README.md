@@ -4,14 +4,14 @@ Este projeto é a implementação computacional da dissertação de mestrado "Ot
 
 O framework implementa duas abordagens de solução e uma interface gráfica desktop para uma análise robusta e interativa.
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 - **Modelo Exato (PLI):** Uma formulação de Programação Linear Inteira utilizando `gurobipy` para encontrar a solução ótima do problema.
 - **Modelo Heurístico (AG):** Uma meta-heurística baseada no Algoritmo Genético Multiobjetivo (NSGA-II) com a biblioteca `DEAP`, projetada para escalar em redes de grande porte.
 - **Interface Gráfica Desktop:** Um dashboard desenvolvido com **PySide6 (Qt for Python)**, uma aplicação desktop nativa e robusta. É ideal para gerenciar tarefas computacionais de longa duração sem congelar ou perder a sessão, permitindo o acompanhamento do progresso em tempo real.
 - **Geração de Dados:** Scripts para gerar instâncias sintéticas baseadas no trabalho de Ponciano (2017) e para processar dados reais de contratos.
 
-## 📂 Estrutura do Projeto
+## Estrutura do Projeto
 
 O projeto está organizado da seguinte forma:
 
@@ -33,7 +33,7 @@ O projeto está organizado da seguinte forma:
     └── README.md                 # Este arquivo
 ```
 
-## 🚀 Configuração do Ambiente Local
+## Configuração do Ambiente Local
 
 Este projeto utiliza um ambiente virtual Python (`venv`) para gerenciar suas dependências de forma isolada.
 
@@ -69,7 +69,7 @@ Este projeto utiliza um ambiente virtual Python (`venv`) para gerenciar suas dep
     pip install -r requirements.txt
     ```
 
-## 💻 Como Usar
+## Como Usar
 
 ### 1. Usando a Interface Gráfica (Recomendado)
 
