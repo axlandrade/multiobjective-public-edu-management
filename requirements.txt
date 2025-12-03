@@ -8,3 +8,5 @@ notebook
 deap
 pyside6
 plotly
+openai
+google-generativeai
