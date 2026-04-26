@@ -1,5 +1,3 @@
-# experiments/public_management/run_heuristic.py
-
 import random
 import argparse
 import numpy as np
@@ -12,9 +10,9 @@ import json
 
 from deap import base, creator, tools, algorithms
 
-# Import our custom modules
-from src.graph_constructor import build_multigraph_from_csv
-from src.genetic_algorithm import setup_genetic_algorithm
+# --- IMPORTS ATUALIZADOS PARA A NOVA ESTRUTURA DE PASTAS ---
+from src.public_management.graph_constructor import build_multigraph_from_csv
+from src.public_management.genetic_algorithm import setup_genetic_algorithm
 
 def main():
     """
@@ -133,9 +131,7 @@ def main():
         json.dump(solution_partitions, f, indent=4)
     print(f"  - Solution partitions saved to: {partitions_path}")
 
-    # --- NOVO BLOCO PARA SALVAR ESTATÍSTICAS ---
-    # [English] Save execution summary (parameters and time) to a JSON file.
-    # [Português] Salva o sumário da execução (parâmetros e tempo) em um arquivo JSON.
+    # Save execution summary (parameters and time) to a JSON file.
     stats_data = {
         'instance_file': args.data,
         'population_size': args.pop_size,
@@ -150,7 +146,6 @@ def main():
     with open(stats_path, 'w') as f:
         json.dump(stats_data, f, indent=4)
     print(f"  - Execution stats saved to: {stats_path}")
-    # --- FIM DO NOVO BLOCO ---
 
     # Print a summary to the console
     print("\nSolution ID      | Num_Clusters (f2) | Disagreement (f1)")
@@ -158,7 +153,6 @@ def main():
     for index, row in df_pareto.iterrows():
         print(
             f"{row['solution_id']:<16} | {row['num_clusters_f2']:>17} | {row['disagreement_f1']:<18.4f}")
-
 
 if __name__ == '__main__':
     main()

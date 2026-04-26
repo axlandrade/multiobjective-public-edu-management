@@ -1,14 +1,13 @@
-# experiments/public_management/run_exact.py
 import argparse
 import os
 import pandas as pd
 import time
 
-# Importando as funções dos seus outros módulos
+# --- IMPORTS ATUALIZADOS PARA A NOVA ESTRUTURA DE PASTAS ---
 from src.public_management.create_real_network import main as create_real_network_main
-from src.graph_constructor import build_multigraph_from_csv
-from src.optimization_model import solve_multigraph_cc
-from src.visualizer import visualize_and_save_graph
+from src.public_management.graph_constructor import build_multigraph_from_csv
+from src.public_management.optimization_model import solve_multigraph_cc
+from src.public_management.visualizer import visualize_and_save_graph
 
 def print_cluster_summary(clusters: dict):
     """Imprime um resumo da partição de clusters encontrada."""
@@ -59,7 +58,7 @@ def main():
     print("\n--- Etapa 1: Preparando o arquivo da rede de dados reais ---")
     # Chama a função principal de create_real_network.py para garantir que o arquivo de entrada exista
     create_real_network_main()
-    real_data_path = 'data/rede_real_input.csv'
+    real_data_path = 'data/public_management/raw/rede_real_input.csv' # AJUSTEI O CAMINHO AQUI PARA A NOVA ESTRUTURA
     
     if not os.path.exists(real_data_path):
         print(f"ERRO: Não foi possível criar ou encontrar o arquivo '{real_data_path}'. Abortando.")

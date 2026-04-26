@@ -1,0 +1,12 @@
+services:
+  po_env:
+    build: .
+    container_name: workspace_po
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Diz ao pip e ao sistema que a pasta HOME do usuário é o /app
+      # Assim o pip pode criar o diretório oculto .local lá dentro sem erro de permissão
+      - HOME=/app
+    user: "${UID:-1000}:${GID:-1000}"
