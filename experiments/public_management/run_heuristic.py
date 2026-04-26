@@ -1,4 +1,4 @@
-# src/run_ga_real_data.py
+# experiments/public_management/run_heuristic.py
 
 import random
 import argparse

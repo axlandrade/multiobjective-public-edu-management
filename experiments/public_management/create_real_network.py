@@ -1,4 +1,4 @@
-# src/create_real_network.py
+# experiments/public_management/create_real_network.py
 
 import pandas as pd
 import os

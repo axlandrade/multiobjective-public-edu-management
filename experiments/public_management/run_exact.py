@@ -1,4 +1,4 @@
-# src/run_exact_real.py
+# experiments/public_management/run_exact.py
 import argparse
 import os
 import pandas as pd
