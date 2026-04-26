@@ -1,5 +1,3 @@
-# src/public_management/optimization_model.py
-
 from itertools import combinations
 from gurobipy import GRB
 import networkx as nx
@@ -17,7 +15,7 @@ with gp.Env(params=options) as env, gp.Model(env=env) as model:
 def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit: int = 3600) -> tuple:
     """
     [Português]
-    Resolve o problema de Correlation Clustering Probabilístico Multiobjetivo.
+    Resolve o problema de Correlation Clustering Probabilístico Multiobjetivo para Multigrafos.
 
     Retorna:
         Uma tupla contendo:
@@ -28,15 +26,13 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
         - int: Valor final do objetivo de número de clusters (f2).
     """
     try:
-        print("\nBuilding the multi-objective optimization model...")
+        print("\nBuilding the multi-objective optimization model for MultiGraph...")
 
         model = gp.Model("multi_objective_cc")
-        # Mudei para 1 para vermos o progresso do Gurobi
         model.setParam('OutputFlag', 1)
 
-        # --- CORREÇÃO: Garantir que todos os nós são strings ---
+        # Garantir que todos os nós são strings e estão ordenados
         nodes = sorted([str(n) for n in G.nodes()])
-        # --- FIM DA CORREÇÃO ---
 
         # --- STAGE 1: Decision Variables ---
         y = model.addVars(nodes, vtype=GRB.BINARY, name="y")
@@ -47,93 +43,99 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
 
         # --- STAGE 2: Structural Constraints ---
         for j in nodes:
-            model.addConstr(gp.quicksum(z[i, j]
-                            for i in nodes) == 1, name=f"assign_{j}")
+            model.addConstr(gp.quicksum(z[i, j] for i in nodes) == 1, name=f"assign_{j}")
 
         for i in nodes:
             model.addConstr(z[i, i] == y[i], name=f"self_assign_{i}")
             for j in nodes:
                 if i != j:
-                    model.addConstr(z[i, j] <= y[i],
-                                    name=f"consistency_{i}_{j}")
+                    model.addConstr(z[i, j] <= y[i], name=f"consistency_{i}_{j}")
 
         print("  - Added structural constraints for the representative model.")
 
         # --- STAGE 3: Linearization Variables and Constraints ---
-        # Usando 'combinations' com a lista de nós já convertida para string
         node_pairs = list(combinations(nodes, 2))
         w = model.addVars(node_pairs, nodes, vtype=GRB.BINARY, name="w")
         s = model.addVars(node_pairs, vtype=GRB.BINARY, name="s")
 
         for a, b in s.keys():
-            model.addConstr(s[a, b] == gp.quicksum(w[a, b, k]
-                            for k in nodes), name=f"s_def_{a}_{b}")
+            model.addConstr(s[a, b] == gp.quicksum(w[a, b, k] for k in nodes), name=f"s_def_{a}_{b}")
 
             for k in nodes:
-                model.addConstr(w[a, b, k] <= z[k, a],
-                                name=f"w_lin1_{a}_{b}_{k}")
-                model.addConstr(w[a, b, k] <= z[k, b],
-                                name=f"w_lin2_{a}_{b}_{k}")
-                model.addConstr(w[a, b, k] >= z[k, a] +
-                                z[k, b] - 1, name=f"w_lin3_{a}_{b}_{k}")
+                model.addConstr(w[a, b, k] <= z[k, a], name=f"w_lin1_{a}_{b}_{k}")
+                model.addConstr(w[a, b, k] <= z[k, b], name=f"w_lin2_{a}_{b}_{k}")
+                model.addConstr(w[a, b, k] >= z[k, a] + z[k, b] - 1, name=f"w_lin3_{a}_{b}_{k}")
 
         print("  - Added linearization constraints.")
 
         # --- STAGE 4: Multi-Objective Function (Weighted Sum) ---
         f1_disagreement = gp.LinExpr()
-        for u, v, data in G.edges(data=True):
-            # --- CORREÇÃO: Garantir que as chaves também são strings ---
+        
+        # OTIMIZAÇÃO: Pré-agregar penalidades de múltiplas arestas entre os mesmos nós
+        pair_penalties = {}
+        W_total = 0.0
+        
+        # Iteramos usando keys=True para pegar todas as múltiplas arestas (contratos)
+        for u, v, k, data in G.edges(keys=True, data=True):
             u_str, v_str = str(u), str(v)
+            
+            # Ignoramos auto-loops para cálculo de desequilíbrio estrutural
+            if u_str == v_str:
+                continue
+                
             key = tuple(sorted((u_str, v_str)))
-            # --- FIM DA CORREÇÃO ---
+            
+            p_e = data.get('positive_prob', 0.5)
+            w_e = data.get('weight', 1.0)
+            W_total += w_e
+            
+            if key not in pair_penalties:
+                pair_penalties[key] = {'pos': 0.0, 'neg': 0.0}
+            
+            # Acumula o risco/peso de TODOS os contratos entre este par de nós
+            pair_penalties[key]['pos'] += w_e * p_e
+            pair_penalties[key]['neg'] += w_e * (1 - p_e)
 
-            # Checa se a chave existe (caso u == v)
+        # Adiciona na função objetivo de forma enxuta
+        for key, penalties in pair_penalties.items():
             if key in s:
-                p_e = data['positive_prob']
-                w_e = data['weight']
-                f1_disagreement += w_e * \
-                    (p_e * (1 - s[key]) + (1 - p_e) * s[key])
+                # Erro Tipo I: Cortar uma relação que deveria ser positiva
+                # Erro Tipo II: Manter junta uma relação que deveria ser negativa
+                f1_disagreement += penalties['pos'] * (1 - s[key]) + penalties['neg'] * s[key]
 
         f2_num_clusters = gp.quicksum(y[i] for i in nodes)
 
         # Normalização dos objetivos
         N = len(nodes)
-        W_total = sum(d['weight'] for _, _, d in G.edges(data=True))
-
         f1_norm = f1_disagreement / W_total if W_total > 0 else 0
         f2_norm = f2_num_clusters / N if N > 0 else 0
 
         lambda_val = lambda_weight
-        model.setObjective(lambda_val * f1_norm +
-                           (1 - lambda_val) * f2_norm, GRB.MINIMIZE)
+        model.setObjective(lambda_val * f1_norm + (1 - lambda_val) * f2_norm, GRB.MINIMIZE)
 
-        print("  - Multi-objective function built.")
+        print("  - Multi-objective function built (aggregated for MultiGraph).")
 
         # --- STAGE 5: Optimize and Process Results ---
         model.setParam('TimeLimit', time_limit)
-        print(
-            f"\nStarting optimization with lambda = {lambda_val} and time limit = {time_limit}s...")
+        print(f"\nStarting optimization with lambda = {lambda_val} and time limit = {time_limit}s...")
         model.optimize()
         print("Optimization finished.")
 
         if model.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
             clusters = _reconstruct_clusters_from_representatives(nodes, z)
 
-            # Capture the final values of the individual objectives
             final_f1 = f1_disagreement.getValue()
             final_f2 = f2_num_clusters.getValue()
 
             print(f"\n--- Optimization Results ---")
-            print(
-                f"  - Combined Normalized Objective Value (Z): {model.ObjVal:.4f}")
+            print(f"  - Combined Normalized Objective Value (Z): {model.ObjVal:.4f}")
             print(f"  - Disagreement (f1): {final_f1:.4f}")
             print(f"  - Number of Clusters (f2): {int(final_f2)}")
             print(f"  - Solver Execution Time: {model.Runtime:.2f}s")
 
             return clusters, model.ObjVal, model.Runtime, final_f1, final_f2
         else:
-            print(
-                f"Could not find a viable solution. Status code: {model.Status}")
+            print(f"Could not find a viable solution. Status code: {model.Status}")
             return None, None, None, None, None
 
     except gp.GurobiError as e:
@@ -146,8 +148,6 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
 
 def _reconstruct_clusters_from_representatives(nodes: list, z: dict) -> dict:
     cluster_map = {}
-
-    # Acessa as chaves do Gurobi Var corretamente
     representatives = {i for i in nodes if z[i, i].X > 0.5}
 
     for j in nodes:
