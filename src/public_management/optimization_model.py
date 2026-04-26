@@ -1,4 +1,4 @@
-# src/optimization_model.py
+# src/public_management/optimization_model.py
 
 from itertools import combinations
 from gurobipy import GRB

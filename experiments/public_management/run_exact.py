@@ -5,10 +5,10 @@ import pandas as pd
 import time
 
 # Importando as funções dos seus outros módulos
-from create_real_network import main as create_real_network_main
-from graph_constructor import build_multigraph_from_csv
-from optimization_model import solve_multigraph_cc
-from visualizer import visualize_and_save_graph
+from src.public_management.create_real_network import main as create_real_network_main
+from src.graph_constructor import build_multigraph_from_csv
+from src.optimization_model import solve_multigraph_cc
+from src.visualizer import visualize_and_save_graph
 
 def print_cluster_summary(clusters: dict):
     """Imprime um resumo da partição de clusters encontrada."""

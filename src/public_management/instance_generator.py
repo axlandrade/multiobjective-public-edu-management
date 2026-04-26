@@ -1,4 +1,4 @@
-# experiments/public_management/instance_generator.py
+# src/public_management/instance_generator.py
 
 import pandas as pd
 import numpy as np

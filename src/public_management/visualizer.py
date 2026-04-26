@@ -1,4 +1,4 @@
-# src/visualizer.py
+# src/public_management/visualizer.py
 
 import networkx as nx
 import matplotlib.pyplot as plt

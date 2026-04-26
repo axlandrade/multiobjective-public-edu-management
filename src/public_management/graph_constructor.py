@@ -1,4 +1,4 @@
-# src/graph_constructor.py
+# src/public_management/graph_constructor.py
 
 import pandas as pd
 import networkx as nx

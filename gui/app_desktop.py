@@ -1,4 +1,4 @@
-# app_desktop.py
+# gui/app_desktop.py
 
 import sys
 import time
@@ -29,16 +29,13 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 # --- IMPORTAÇÕES DO PROJETO ---
-project_root = os.path.abspath(os.path.dirname(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
-from src.instance_generator import generate_multigraph_instances
-from src.graph_constructor import build_multigraph_from_csv
-from src.optimization_model import solve_multigraph_cc
-from experiments.heuristic.run_genetic_algorithm import run_ga_experiment
-from src.create_real_network import process_and_save_network
-from src.genetic_algorithm import setup_genetic_algorithm
+from src.core.instance_generator import generate_multigraph_instances
+from src.public_management.graph_constructor import build_multigraph_from_csv
+from src.public_management.optimization_model import solve_multigraph_cc
+from experiments.public_management.run_heuristic import run_ga_experiment
+from src.public_management.create_real_network import process_and_save_network
+from src.public_management.genetic_algorithm import setup_genetic_algorithm
 from deap import tools, algorithms
 
 # ==============================================================================

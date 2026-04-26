@@ -13,9 +13,8 @@ import json
 from deap import base, creator, tools, algorithms
 
 # Import our custom modules
-from graph_constructor import build_multigraph_from_csv
-from genetic_algorithm import setup_genetic_algorithm
-
+from src.graph_constructor import build_multigraph_from_csv
+from src.genetic_algorithm import setup_genetic_algorithm
 
 def main():
     """
