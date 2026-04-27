@@ -1,18 +1,10 @@
-# Usa uma imagem oficial do Python
 FROM python:3.10-slim
 
-# Instala ferramentas básicas necessárias para pacotes C e compilação
-RUN apt-get update && apt-get install -y gcc g++ libc-dev && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Define a pasta de trabalho
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-
-# Primeiro copiamos apenas os requisitos para aproveitar o cache do Docker
-COPY requirements.txt .
-
-# Instala as dependências do projeto
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Mantém o contêiner vivo para podermos entrar nele depois
-CMD ["tail", "-f", "/dev/null"]
