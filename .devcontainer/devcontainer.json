@@ -1,0 +1,16 @@
+{
+    "name": "Dissertacao Axl (CLI)",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python"
+            ]
+        }
+    },
+    "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && pip install -e .",
+    "remoteUser": "root"
+}
