@@ -10,3 +10,4 @@ pyside6
 plotly
 openai
 google-generativeai
+ortools
