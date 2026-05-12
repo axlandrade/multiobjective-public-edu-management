@@ -1,3 +1,9 @@
+"""Synthetic-instance generator for the public-management experiments.
+
+The generator expands a reference corruption-risk graph into multigraph
+instances by creating several noisy parallel contracts for each original edge.
+"""
+
 # src/public_management/instance_generator.py
 
 import pandas as pd
@@ -40,7 +46,8 @@ def generate_multigraph_instances():
     
     print(f"Generating multigraph instances (K={K}) in folder '{output_dir}'...")
 
-    # Iterate through each probability set (P1, P2, ...)
+    # Iterate through each probability set (P1, P2, ...). Each set creates one
+    # CSV instance with the same topology and a different risk profile.
     for set_name, probabilities in prob_sets.items():
         multigraph_data = []
         
@@ -48,7 +55,9 @@ def generate_multigraph_instances():
         for i, base_edge in enumerate(run1_edges):
             base_prob = probabilities[i]
             
-            # Generate K new edges with varied probabilities
+            # Generate K new edges with varied probabilities. This simulates
+            # repeated contracts whose risk scores fluctuate around the source
+            # probability rather than being identical copies.
             new_probs = np.random.normal(loc=base_prob, scale=STD_DEV, size=K)
             # Clip values to ensure they are valid probabilities [0, 1]
             new_probs = np.clip(new_probs, 0.0, 1.0)

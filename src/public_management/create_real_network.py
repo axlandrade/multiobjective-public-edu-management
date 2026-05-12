@@ -1,3 +1,9 @@
+"""Build a model-ready network from raw public-procurement contract data.
+
+The module converts administrative contract records into the generic edge-list
+format used by the graph constructor: node_1, node_2, positive_prob, weight.
+"""
+
 # experiments/public_management/create_real_network.py
 
 import pandas as pd
@@ -9,6 +15,7 @@ def calculate_risk_score(row: pd.Series) -> float:
     Metodologia baseada em Fazekas et al. (2013) e Ponciano (2017).
     """
     # 1. Risco Base (Incerteza inerente/Máxima Entropia)
+    # Base risk starts from maximum uncertainty and is adjusted by red flags.
     risk_score = 0.5
     
     # --- ANÁLISE DA COMPETITIVIDADE (Peso Alto) ---
@@ -53,6 +60,7 @@ def calculate_risk_score(row: pd.Series) -> float:
 
     # --- NORMALIZAÇÃO ---
     # Garante que a probabilidade fique entre [0.1, 0.95]
+    # Keep the score in a probabilistic range without allowing exact 0 or 1.
     return max(0.1, min(risk_score, 0.95))
 
 def process_and_save_network(input_path: str, output_path: str) -> int:
@@ -78,6 +86,7 @@ def process_and_save_network(input_path: str, output_path: str) -> int:
     df['positive_prob'] = df.apply(calculate_risk_score, axis=1)
 
     # Cria o dataframe final da rede
+    # The final network connects public agencies to suppliers.
     df_network = pd.DataFrame({
         'node_1': df['unidadeGestora_nome'],
         'node_2': df['fornecedor_cnpjFormatado'],

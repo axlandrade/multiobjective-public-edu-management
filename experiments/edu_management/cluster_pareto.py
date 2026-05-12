@@ -1,3 +1,10 @@
+"""Cluster educational Pareto solutions into managerial profiles.
+
+The script compares solution chromosomes, creates positive/negative similarity
+edges, and applies a fast KwikCluster-style procedure to group comparable
+timetables into executive profiles.
+"""
+
 import os
 import ast
 import json
@@ -38,6 +45,7 @@ def kwik_cluster(nodes, pos_edges, neg_edges):
     return clusters
 
 def main():
+    """Load the NSGA-II frontier, cluster similar chromosomes, and export a report."""
     print("="*60)
     print("AGRUPANDO A FRONTEIRA DE PARETO (CORRELATION CLUSTERING)")
     print("="*60)

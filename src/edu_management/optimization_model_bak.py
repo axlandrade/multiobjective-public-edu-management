@@ -1,3 +1,10 @@
+"""Legacy Gurobi model for the integrated WSAC-WSMS formulation.
+
+This file preserves a more detailed Gurobi version that returns both the class
+schedule and the restaurant menu, while the active OR-Tools model focuses on
+objective values.
+"""
+
 import gurobipy as gp
 from gurobipy import GRB
 
@@ -60,6 +67,8 @@ def solve_integrated_edu_management(
         # ==========================================
         # 3. Ponte de Acoplamento WSAC -> WSMS
         # ==========================================
+        # A[k, l] is the bridge variable: students physically present in a
+        # day/shift create minimum demand for the restaurant model.
         A = model.addVars(days, shifts, vtype=GRB.INTEGER, name="AlunosAula")
         
         for k in days:

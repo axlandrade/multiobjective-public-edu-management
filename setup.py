@@ -1,3 +1,5 @@
+"""Packaging metadata for installing the project modules in editable mode."""
+
 from setuptools import setup, find_packages
 
 setup(

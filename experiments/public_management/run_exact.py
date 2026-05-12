@@ -1,3 +1,9 @@
+"""Run the exact public-management model on real contract data.
+
+The script prepares the raw contract CSV, builds the multigraph, executes the
+OR-Tools model for one lambda value, and saves clusters plus execution stats.
+"""
+
 import argparse
 import os
 import pandas as pd
@@ -30,6 +36,7 @@ def print_cluster_summary(clusters: dict):
 
 
 def main():
+    """CLI workflow for a single exact public-management experiment."""
     parser = argparse.ArgumentParser(description="Executa o MODELO EXATO (PLI via OR-Tools) nos dados reais.")
     
     parser.add_argument(
@@ -67,6 +74,7 @@ def main():
     real_data_path = 'data/rede_real_input.csv'
     
     # Invoca a função do seu módulo passando os paths, gerando o CSV de input
+    # Convert the raw contract data into the standardized network CSV.
     try:
         process_and_save_network(raw_data_path, real_data_path)
     except Exception as e:
@@ -82,6 +90,7 @@ def main():
     print("\n--- Etapa 2: Iniciando a otimização exata ---")
     start_time = time.time()
     
+    # Build the graph and hand it to the exact model.
     G = build_multigraph_from_csv(real_data_path)
     if not G: return
     
@@ -105,6 +114,7 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
         
         # Salva o particionamento dos clusters
+        # Save the node-to-representative mapping for later auditing.
         clusters_csv_path = os.path.join(output_dir, "clusters_encontrados.csv")
         df_clusters = pd.DataFrame(list(clusters.items()), columns=['node', 'cluster_representative'])
         df_clusters.sort_values(by=['cluster_representative', 'node']).to_csv(clusters_csv_path, index=False)

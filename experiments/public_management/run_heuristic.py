@@ -1,3 +1,5 @@
+"""Run the public-management NSGA-II heuristic and export a Pareto front."""
+
 import random
 import argparse
 import numpy as np
@@ -56,6 +58,8 @@ def main():
     nodes = sorted(list(G.nodes()))
     toolbox = setup_genetic_algorithm(nodes, G)
 
+    # Parallel evaluation is important because each individual requires a full
+    # disagreement calculation over the graph.
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
 
@@ -104,6 +108,7 @@ def main():
     solution_partitions = {}
     solution_counter = 0
 
+    # The Hall of Fame stores non-dominated chromosomes discovered by NSGA-II.
     for ind in hof:
         f1_disagreement, f2_clusters = ind.fitness.values
         solution_id = f"solution_{solution_counter}"

@@ -1,3 +1,5 @@
+"""Graph visualization helpers for clustered public-management networks."""
+
 # src/public_management/visualizer.py
 
 import networkx as nx
@@ -30,6 +32,7 @@ def visualize_and_save_graph(G: nx.MultiGraph, clusters: dict, output_path: str)
     nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=2000, alpha=0.9)
 
     # 4. Draw the edges, colored by their nature (positive/negative)
+    # Green/red edges give a quick visual cue for low/high positive_prob values.
     edge_colors = []
     for u, v, data in G.edges(data=True):
         color = 'g' if data['positive_prob'] > 0.5 else 'r'

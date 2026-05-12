@@ -1,3 +1,10 @@
+"""NSGA-II support code for public-management correlation clustering.
+
+The chromosome representation stores, for each node position, the index of the
+node chosen as its cluster representative. DEAP evolves these assignments to
+minimize disagreement and the number of clusters simultaneously.
+"""
+
 # src/public_management/genetic_algorithm.py
 
 # --- Imports ---
@@ -21,7 +28,8 @@ def evaluate_fitness(
     Optimized for MultiGraphs by using pre-aggregated edge penalties.
     """
     # --- Step 1: Translate chromosome into a more usable partition map ---
-    # Convert chromosome indices to actual node names representing their cluster center
+    # Example: chromosome[i] == 3 means node i belongs to the cluster whose
+    # representative is node 3.
     partition = {nodes_map[i]: nodes_map[chromosome[i]] for i in range(len(chromosome))}
 
     # --- Step 2: Calculate f1 (Expected Disagreement) ---
@@ -29,6 +37,8 @@ def evaluate_fitness(
     
     # OTIMIZAÇÃO: Usa arestas pré-agregadas se disponíveis (muito mais rápido para o AG)
     if aggregated_edges is not None:
+        # Fast path used during evolution: all parallel edges for a node pair
+        # have already been collapsed into positive/negative penalties.
         for (u, v), penalties in aggregated_edges.items():
             if partition[u] == partition[v]:
                 # Estão no mesmo cluster: pagam o custo das arestas que deveriam ser negativas
@@ -69,6 +79,8 @@ def setup_genetic_algorithm(nodes: List[str], G: nx.MultiGraph):
     Pre-aggregates MultiGraph edges to speed up the fitness evaluation.
     """
     # --- 0. Pre-aggregate MultiGraph edges for immense speedup ---
+    # Stores one entry per unordered pair: {'pos': cost of separating them,
+    # 'neg': cost of keeping them together}.
     aggregated_edges = {}
     
     edges_iter = G.edges(keys=True, data=True) if isinstance(G, nx.MultiGraph) else G.edges(data=True)
@@ -105,6 +117,7 @@ def setup_genetic_algorithm(nodes: List[str], G: nx.MultiGraph):
     num_nodes = len(nodes)
 
     # --- 3. Register the Genetic Operators ---
+    # Each gene can point to any node as the representative of its cluster.
     toolbox.register("attr_int", random.randint, 0, num_nodes - 1)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_int, n=num_nodes)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)

@@ -1,3 +1,10 @@
+"""Exact OR-Tools model for the integrated educational-management problem.
+
+The formulation couples classroom allocation (WSAC) with university-restaurant
+meal planning (WSMS). Lambda controls the trade-off between covering more
+students and reducing the total meal cost.
+"""
+
 # src/edu_management/optimization_model.py
 
 from ortools.linear_solver import pywraplp
@@ -8,6 +15,7 @@ def solve_integrated_edu_management(
     food_cost, calories, min_calories=1200,
     adherence_rate=0.7, lambda_weight=0.5, time_limit=120
 ):
+    """Solve the integrated WSAC-WSMS weighted model and return objective values."""
     solver = pywraplp.Solver.CreateSolver('SCIP')
     if not solver:
         return None
@@ -17,6 +25,7 @@ def solve_integrated_edu_management(
     # 1. VARIÁVEIS DE DECISÃO (COM LIMITES)
     # ==========================================
     x = {}
+    # Each discipline can be scheduled at most once.
     for d in disciplines:
         for r in rooms:
             for day in days:
@@ -34,6 +43,7 @@ def solve_integrated_edu_management(
     # ==========================================
     # 2. RESTRIÇÕES (Iguais)
     # ==========================================
+    # Capacity constraints prevent allocating a class to a room that is too small.
     for d in disciplines:
         solver.Add(solver.Sum([x[d, r, day, shift] for r in rooms for day in days for shift in shifts]) <= 1)
 
@@ -43,11 +53,13 @@ def solve_integrated_edu_management(
                 for shift in shifts:
                     solver.Add(x[d, r, day, shift] * students_enrolled[d] <= room_capacity[r])
 
+    # A physical room cannot host more than one discipline in the same slot.
     for r in rooms:
         for day in days:
             for shift in shifts:
                 solver.Add(solver.Sum([x[d, r, day, shift] for d in disciplines]) <= 1)
 
+    # Coupling constraints: scheduled students generate restaurant demand.
     for day in days:
         for shift in shifts:
             z_alunos = solver.Sum([x[d, r, day, shift] * students_enrolled[d] for d in disciplines for r in rooms])
@@ -72,6 +84,7 @@ def solve_integrated_edu_management(
 
     # NORMALIZAÇÃO: Dividimos alunos por 1000 e custo por 10000 para que ambos variem de ~0.0 a 1.0.
     # Adicionamos + 0.0001 no peso do custo apenas para impedir que o solver ignore totalmente o custo no lambda=1.0
+    # Normalization keeps both objectives on comparable numerical scales.
     peso_alunos = lambda_weight
     peso_custo = max(1.0 - lambda_weight, 0.0001)
 

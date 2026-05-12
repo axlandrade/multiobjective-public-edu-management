@@ -1,3 +1,10 @@
+"""Exact OR-Tools model for public-management correlation clustering.
+
+The model uses representative variables: each node is assigned to one cluster
+representative, and the objective balances expected disagreement (f1) against
+the number of clusters (f2) through a weighted sum controlled by lambda_weight.
+"""
+
 import time
 import networkx as nx
 from ortools.linear_solver import pywraplp
@@ -10,6 +17,7 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
     start_time = time.time()
     
     # 1. Instancia o solver exato (SCIP é muito bom para PLI dentro do OR-Tools)
+    # SCIP is the mixed-integer solver used through OR-Tools.
     solver = pywraplp.Solver.CreateSolver('SCIP')
     if not solver:
         print("ERRO: Solver SCIP não disponível no OR-Tools atual.")
@@ -28,6 +36,8 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
     P_plus = {}
     P_minus = {}
     
+    # w and s transform the nonlinear statement "i and j are in the same
+    # cluster" into linear constraints that SCIP can optimize.
     for i in range(N):
         for j in range(i+1, N):
             u = nodes[i]
@@ -118,6 +128,7 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
     # Objeivo Combinado (Soma Ponderada)
     # Lembrete: Se F1 e F2 estiverem em escalas muito diferentes, o ideal é normalizar.
     # Neste script padrão mantemos a formulação bruta Z = lambda * F1 + (1 - lambda) * F2
+    # Combined weighted-sum objective.
     Z = lambda_weight * f1_expr + (1.0 - lambda_weight) * f2_expr
     
     solver.Minimize(Z)

@@ -1,8 +1,17 @@
+"""Legacy Gurobi implementation of the public-management exact model.
+
+This backup keeps the original Gurobi formulation for comparison with the
+current OR-Tools implementation. It should be treated as solver-specific
+reference code rather than the main execution path.
+"""
+
 from itertools import combinations
 from gurobipy import GRB
 import networkx as nx
 import gurobipy as gp
 
+# NOTE: These credentials appear to be project-local Gurobi WLS settings.
+# Avoid publishing real secrets in public repositories.
 options = {
     "WLSACCESSID": "00ae781a-b0e8-40c0-b592-fbb33def1fbe",
     "WLSSECRET": "4f93872a-59ef-4057-93f6-8600037f94a5",
@@ -147,6 +156,7 @@ def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit
 
 
 def _reconstruct_clusters_from_representatives(nodes: list, z: dict) -> dict:
+    """Convert representative assignment variables into a node -> cluster map."""
     cluster_map = {}
     representatives = {i for i in nodes if z[i, i].X > 0.5}
 

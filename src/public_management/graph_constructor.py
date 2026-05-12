@@ -1,3 +1,10 @@
+"""Utilities for turning contract tables into NetworkX multigraphs.
+
+Each row of the CSV is treated as one contract/relationship. Multiple contracts
+between the same pair of actors are kept as parallel edges, which is why the
+project uses ``nx.MultiGraph`` instead of a simple graph.
+"""
+
 # src/public_management/graph_constructor.py
 
 import pandas as pd
@@ -6,6 +13,11 @@ import networkx as nx
 def build_multigraph_from_csv(file_path: str) -> nx.MultiGraph:
     """
     Reads a CSV file containing contract data and builds a NetworkX MultiGraph.
+
+    Expected columns:
+        node_1, node_2: endpoints of the relationship.
+        positive_prob: probability/risk score associated with the relationship.
+        weight: optional importance of the edge in the objective function.
     """
     try:
         # Define data types explicitly during CSV read to prevent errors.
@@ -24,12 +36,14 @@ def build_multigraph_from_csv(file_path: str) -> nx.MultiGraph:
         if not all(column in df.columns for column in required_columns):
             raise ValueError(f"CSV must contain the columns: {required_columns}")
 
+        # MultiGraph preserves repeated contracts between the same two nodes.
         G = nx.MultiGraph()
 
         # Adiciona nós (garantindo que são strings sem espaços vazios extras)
         df['node_1'] = df['node_1'].astype(str).str.strip()
         df['node_2'] = df['node_2'].astype(str).str.strip()
         
+        # Collect every unique actor from both endpoint columns.
         all_nodes = pd.unique(df[['node_1', 'node_2']].values.ravel('K'))
         G.add_nodes_from(all_nodes)
 

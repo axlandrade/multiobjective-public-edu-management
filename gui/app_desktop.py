@@ -1,3 +1,10 @@
+"""PySide6 desktop dashboard for running and inspecting project experiments.
+
+The GUI wraps the public-management workflows: synthetic validation, real-data
+processing, Pareto visualization, cluster inspection, and optional LLM-based
+interpretation of results.
+"""
+
 # gui/app_desktop.py
 
 import sys
@@ -44,6 +51,7 @@ from deap import tools, algorithms
 
 # --- WORKER: INTEGRAÇÃO COM LLM ---
 class AIWorker(QThread):
+    """Background thread that sends Pareto summaries to an external LLM."""
     finished = Signal(str)
     error = Signal(str)
 
@@ -122,6 +130,7 @@ class AIWorker(QThread):
         """
 
 class ValidationWorker(QThread):
+    """Run exact and heuristic validation without blocking the Qt event loop."""
     status_update = Signal(str); finished = Signal(dict)
     def __init__(self, data_path, pop_size, ngen, cxpb, mutpb):
         super().__init__()
@@ -169,6 +178,7 @@ class ValidationWorker(QThread):
             self.finished.emit({'error': f'Ocorreu um erro: {e}'})
 
 class RealDataWorker(QThread):
+    """Run the heuristic workflow for a processed real-data network."""
     progress = Signal(int, str); finished = Signal(dict)
     def __init__(self, data_path, pop_size, ngen, cxpb, mutpb):
         super().__init__()
@@ -227,6 +237,7 @@ class RealDataWorker(QThread):
             self.finished.emit({'error': f'Ocorreu um erro: {e}'})
 
 class DataProcessingWorker(QThread):
+    """Convert a raw CSV into the edge-list format consumed by the models."""
     finished = Signal(str, str)
     def __init__(self, input_path, output_path): 
         super().__init__()
@@ -241,6 +252,7 @@ class DataProcessingWorker(QThread):
 
 # --- WORKER ATUALIZADO PARA SUPORTAR RAW_VIZ ---
 class VisualizationWorker(QThread):
+    """Build graph layouts in the background for raw networks or clusters."""
     finished = Signal(object, object)
     def __init__(self, data_path, cluster_nodes=None, raw_viz=False, limit_nodes=None):
         super().__init__()
@@ -276,6 +288,7 @@ class VisualizationWorker(QThread):
             self.finished.emit(None, str(e))
 
 class MplCanvas(FigureCanvas):
+    """Small Matplotlib canvas embedded inside the Qt interface."""
     def __init__(self, parent=None):
         fig = Figure(figsize=(5, 4), dpi=100)
         self.axes = fig.add_subplot(111)
@@ -288,6 +301,7 @@ class MplCanvas(FigureCanvas):
 # --- JANELA PRINCIPAL ---
 # ==============================================================================
 class MainWindow(QMainWindow):
+    """Main Qt window that coordinates controls, workers, plots, and exports."""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Dashboard de Análise e Validação")
@@ -305,6 +319,7 @@ class MainWindow(QMainWindow):
         self.toggle_mode()
 
     def _setup_ui(self):
+        """Create all widgets and connect their Qt signals."""
         main_layout = QHBoxLayout()
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
@@ -540,6 +555,7 @@ class MainWindow(QMainWindow):
         if p: self.file_lbl.setText(f"Pronto: {os.path.basename(p)}"); self.run_btn.setEnabled(True)
 
     def start_analysis(self):
+        """Start the selected analysis mode using the current UI parameters."""
         self.run_btn.setEnabled(False); self.st_lbl.setText("Executando..."); self.p_bar.setValue(0)
         p,n,c,m = self.pop_sp.value(), self.gen_sp.value(), self.cx_sl.value()/100, self.mt_sl.value()/100
         self.res_tabs.setCurrentIndex(0)
@@ -555,6 +571,7 @@ class MainWindow(QMainWindow):
         self.wt.finished.connect(self.disp_res); self.wt.start()
 
     def disp_res(self, res):
+        """Receive worker results and update tables, charts, and cached data."""
         self.run_btn.setEnabled(True); self.p_bar.setRange(0,100); self.p_bar.setValue(100)
         if 'error' in res: self.st_lbl.setText(res['error']); return
         self.cv.axes.clear()

@@ -1,3 +1,5 @@
+"""Generate an exact weighted-sum Pareto sweep for the educational model."""
+
 # experiments/edu_management/run_exact.py
 
 import sys
@@ -7,11 +9,12 @@ import time
 from src.edu_management.optimization_model import solve_integrated_edu_management
 
 def main():
+    """Create a synthetic university scenario and solve it for many lambdas."""
     print("="*60)
     print("VARREDURA DE PARETO (SOMA PONDERADA): GESTÃO EDUCACIONAL (WSAC + WSMS)")
     print("="*60)
 
-    # --- 1. Dados Fake: Uma Universidade Maior ---
+    # --- 1. Synthetic data: a larger university-like scenario.
     disciplines = [f'Disc_{i:02d}' for i in range(1, 21)]
     rooms = ['Sala_101', 'Sala_102', 'Sala_103', 'Lab_01', 'Auditorio']
     days = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta']

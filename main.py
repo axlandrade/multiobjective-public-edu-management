@@ -1,3 +1,10 @@
+"""Command-line entry point for the public-management clustering workflow.
+
+This script receives a CSV network instance, builds the multigraph, solves the
+weighted multiobjective correlation-clustering model, and writes the numerical
+and visual outputs to the selected result directory.
+"""
+
 # src/main.py
 import argparse
 import os
@@ -9,6 +16,7 @@ from optimization_model import solve_multigraph_cc
 from visualizer import visualize_and_save_graph
 
 def print_cluster_summary(clusters: dict):
+    """Group nodes by their representative and print a readable partition."""
     print("\n--- Cluster Partition Summary ---")
     grouped_clusters = {}
     for node, cluster_id in clusters.items():
@@ -22,6 +30,7 @@ def print_cluster_summary(clusters: dict):
     print("---------------------------------")
 
 def main():
+    """Parse CLI arguments, run the solver, and persist all generated outputs."""
     parser = argparse.ArgumentParser(description="Solve the Multi-Objective Correlation Clustering problem for multigraphs.")
     
     parser.add_argument('--data', required=True, help="Path to the input .csv data file.")
@@ -44,9 +53,11 @@ def main():
     print(f"Time limit: {args.time_limit}s")
     print("="*50)
 
+    # Step 1: transform the CSV edge list into a NetworkX MultiGraph.
     G = build_multigraph_from_csv(args.data)
     if not G: return
-    
+
+    # Step 2: solve the weighted-sum model for the selected lambda value.
     results = solve_multigraph_cc(G, lambda_weight=args.lambda_weight, time_limit=args.time_limit)
     if not results: return
 
@@ -66,6 +77,7 @@ def main():
         result_prefix = f"{base_name}_lambda_{args.lambda_weight}"
 
         viz_path = os.path.join(args.output_dir, f"{result_prefix}_viz.png")
+        # The PNG visualization is useful for qualitative inspection of clusters.
         visualize_and_save_graph(G, clusters, viz_path)
         
         clusters_csv_path = os.path.join(args.output_dir, f"{result_prefix}_clusters.csv")
@@ -74,6 +86,7 @@ def main():
         print(f"  - Cluster partition saved to: {clusters_csv_path}")
         
         total_time = time.time() - start_time
+        # Persist the objective values separately so later scripts can compare runs.
         with open(stats_txt_path, 'w') as f:
             f.write(f"--- Execution Statistics ---\n")
             f.write(f"Instance: {args.data}\n")

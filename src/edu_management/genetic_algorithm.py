@@ -1,3 +1,9 @@
+"""NSGA-II support code for the educational-management experiments.
+
+Each chromosome has one gene per discipline. The gene value is a slot id
+(day/shift/room) or -1 when the discipline is not allocated.
+"""
+
 # src/edu_management/genetic_algorithm.py
 
 import random
@@ -19,6 +25,7 @@ def evaluate_edu_fitness(
     Calcula a aptidão do cromossomo (Grade de Horários).
     Retorna F1 (Cobertura Discente - a Maximizar) e F2 (Custo do RU - a Minimizar).
     """
+    # f1 rewards student coverage, while f2 accumulates the restaurant cost.
     f1_cobertura = 0
     f2_custo = 0.0
     
@@ -31,6 +38,7 @@ def evaluate_edu_fitness(
     # Se chromosome[i] == -1, a aula não foi alocada.
     
     # Controle de Exclusividade (Checa se duas disciplinas caíram na mesma sala no mesmo horário)
+    # Track occupied slots so duplicated room/day/shift choices can be penalized.
     slots_usados = set()
     penalidade_exclusividade = 0
     
@@ -94,7 +102,9 @@ def evaluate_edu_fitness(
     fitness_custo = f2_custo
     
     if penalidade_exclusividade > 0 or penalidade_min_aulas > 0:
-        fitness_cobertura = max(0, f1_cobertura - 500) 
+        # Penalized fitness discourages invalid timetables while preserving the
+        # real cost calculation used later to describe Pareto solutions.
+        fitness_cobertura = max(0, f1_cobertura - 500)
         fitness_custo += (penalidade_exclusividade + penalidade_min_aulas)
 
     # Só duas posições, para não bugar o DEAP Statistics
@@ -116,6 +126,7 @@ def setup_edu_genetic_algorithm(
     Configura a Toolbox do DEAP para a Gestão Educacional.
     """
     # 1. Cria a lista 1D de todos os "Slots" possíveis (Dia x Turno x Sala)
+    # Flatten the day x shift x room grid into integer slot IDs for the chromosome.
     slots = []
     slot_id = 0
     for d in days:

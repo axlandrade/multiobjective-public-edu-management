@@ -1,3 +1,5 @@
+"""Run the educational-management NSGA-II heuristic and save Pareto solutions."""
+
 # experiments/edu_management/run_heuristic.py
 
 import sys
@@ -12,6 +14,7 @@ from deap import tools, algorithms
 from src.edu_management.genetic_algorithm import setup_edu_genetic_algorithm
 
 def main():
+    """Build a synthetic instance, evolve schedules, and export the frontier."""
     print("="*60)
     print("GERAÇÃO DA FRONTEIRA DE PARETO EDUCACIONAL VIA NSGA-II")
     print("="*60)
@@ -47,6 +50,7 @@ def main():
     )
 
     # Processamento paralelo (usa os múltiplos núcleos do seu CPU)
+    # Fitness evaluations are independent, so they can be distributed by CPU core.
     pool = multiprocessing.Pool()
     toolbox.register("map", pool.map)
 
@@ -83,7 +87,8 @@ def main():
     pareto_data = []
     
     for idx, ind in enumerate(hof):
-        # A fitness do DEAP ainda carrega a multa fantasma.
+        # DEAP fitness still carries search penalties, so the code below
+        # recomputes the real management metrics for reporting.
         f1_neg, f2_custo_mutante = ind.fitness.values
         
         # Vamos rodar o cromossomo de novo na nossa "calculadora", 
