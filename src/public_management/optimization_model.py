@@ -1,158 +1,155 @@
-from itertools import combinations
-from gurobipy import GRB
+import time
 import networkx as nx
-import gurobipy as gp
+from ortools.linear_solver import pywraplp
 
-options = {
-    "WLSACCESSID": "00ae781a-b0e8-40c0-b592-fbb33def1fbe",
-    "WLSSECRET": "4f93872a-59ef-4057-93f6-8600037f94a5",
-    "LICENSEID": 2718197,
-}
-with gp.Env(params=options) as env, gp.Model(env=env) as model:
-    pass  # Apenas para inicializar o ambiente Gurobi com as opções fornecidas
-
-
-def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit: int = 3600) -> tuple:
+def solve_multigraph_cc(G: nx.MultiGraph, lambda_weight: float = 0.5, time_limit: int = 3600):
     """
-    [Português]
-    Resolve o problema de Correlation Clustering Probabilístico Multiobjetivo para Multigrafos.
-
-    Retorna:
-        Uma tupla contendo:
-        - dict: Mapeamento de cada nó ao seu representante de cluster.
-        - float: Valor final da função objetivo combinada (Z).
-        - float: Tempo computacional gasto pelo solver.
-        - float: Valor final do objetivo de desequilíbrio (f1).
-        - int: Valor final do objetivo de número de clusters (f2).
+    Resolve o modelo exato para Correlation Clustering em Multigrafos (Gestão Pública)
+    usando o Google OR-Tools. Retorna a partição de clusters e as estatísticas.
     """
-    try:
-        print("\nBuilding the multi-objective optimization model for MultiGraph...")
-
-        model = gp.Model("multi_objective_cc")
-        model.setParam('OutputFlag', 1)
-
-        # Garantir que todos os nós são strings e estão ordenados
-        nodes = sorted([str(n) for n in G.nodes()])
-
-        # --- STAGE 1: Decision Variables ---
-        y = model.addVars(nodes, vtype=GRB.BINARY, name="y")
-        z = model.addVars(nodes, nodes, vtype=GRB.BINARY, name="z")
-
-        print(f"  - Created {len(y)} representative variables ('y').")
-        print(f"  - Created {len(z)} assignment variables ('z').")
-
-        # --- STAGE 2: Structural Constraints ---
-        for j in nodes:
-            model.addConstr(gp.quicksum(z[i, j] for i in nodes) == 1, name=f"assign_{j}")
-
-        for i in nodes:
-            model.addConstr(z[i, i] == y[i], name=f"self_assign_{i}")
-            for j in nodes:
-                if i != j:
-                    model.addConstr(z[i, j] <= y[i], name=f"consistency_{i}_{j}")
-
-        print("  - Added structural constraints for the representative model.")
-
-        # --- STAGE 3: Linearization Variables and Constraints ---
-        node_pairs = list(combinations(nodes, 2))
-        w = model.addVars(node_pairs, nodes, vtype=GRB.BINARY, name="w")
-        s = model.addVars(node_pairs, vtype=GRB.BINARY, name="s")
-
-        for a, b in s.keys():
-            model.addConstr(s[a, b] == gp.quicksum(w[a, b, k] for k in nodes), name=f"s_def_{a}_{b}")
-
-            for k in nodes:
-                model.addConstr(w[a, b, k] <= z[k, a], name=f"w_lin1_{a}_{b}_{k}")
-                model.addConstr(w[a, b, k] <= z[k, b], name=f"w_lin2_{a}_{b}_{k}")
-                model.addConstr(w[a, b, k] >= z[k, a] + z[k, b] - 1, name=f"w_lin3_{a}_{b}_{k}")
-
-        print("  - Added linearization constraints.")
-
-        # --- STAGE 4: Multi-Objective Function (Weighted Sum) ---
-        f1_disagreement = gp.LinExpr()
+    start_time = time.time()
+    
+    # 1. Instancia o solver exato (SCIP é muito bom para PLI dentro do OR-Tools)
+    solver = pywraplp.Solver.CreateSolver('SCIP')
+    if not solver:
+        print("ERRO: Solver SCIP não disponível no OR-Tools atual.")
+        return None, None, None, None, None
         
-        # OTIMIZAÇÃO: Pré-agregar penalidades de múltiplas arestas entre os mesmos nós
-        pair_penalties = {}
-        W_total = 0.0
-        
-        # Iteramos usando keys=True para pegar todas as múltiplas arestas (contratos)
-        for u, v, k, data in G.edges(keys=True, data=True):
-            u_str, v_str = str(u), str(v)
+    solver.SetTimeLimit(time_limit * 1000)  # O limite no OR-Tools é em milissegundos
+    
+    nodes = list(G.nodes())
+    N = len(nodes)
+    
+    # Dicionário reverso para facilitar a busca do índice
+    node_to_idx = {node: i for i, node in enumerate(nodes)}
+
+    # Pré-cálculo das probabilidades (pesos) P+ e P- para cada par de vértices
+    # f1 = sum_{i<j} ( P- * s_ij + P+ * (1 - s_ij) )
+    P_plus = {}
+    P_minus = {}
+    
+    for i in range(N):
+        for j in range(i+1, N):
+            u = nodes[i]
+            v = nodes[j]
+            p_plus = 0.0
+            p_minus = 0.0
             
-            # Ignoramos auto-loops para cálculo de desequilíbrio estrutural
-            if u_str == v_str:
-                continue
+            # Se existe aresta no multigrafo entre u e v
+            if G.has_edge(u, v):
+                # Soma os pesos das múltiplas arestas (índices de risco / probabilidades)
+                for key in G[u][v]:
+                    edge_data = G[u][v][key]
+                    peso = edge_data.get('weight', 0.5)
+                    # Exemplo: probabilidade de corrupção (p_plus) vs probabilidade de honestidade (p_minus)
+                    p_plus += peso
+                    p_minus += (1.0 - peso)
+                    
+            P_plus[(i, j)] = p_plus
+            P_minus[(i, j)] = p_minus
+
+    # ---------------------------------------------------------
+    # 2. VARIÁVEIS DE DECISÃO
+    # ---------------------------------------------------------
+    # y[i] = 1 se o vértice i é um representante de cluster
+    y = {}
+    for i in range(N):
+        y[i] = solver.IntVar(0, 1, f'y_{i}')
+        
+    # z[i,j] = 1 se o vértice j pertence ao cluster representado pelo vértice i
+    z = {}
+    for i in range(N):
+        for j in range(N):
+            z[i, j] = solver.IntVar(0, 1, f'z_{i}_{j}')
+            
+    # w[i,j,k] = 1 se i e j pertencem simultaneamente ao cluster representado por k (i < j)
+    w = {}
+    for i in range(N):
+        for j in range(i+1, N):
+            for k in range(N):
+                w[i, j, k] = solver.IntVar(0, 1, f'w_{i}_{j}_{k}')
                 
-            key = tuple(sorted((u_str, v_str)))
-            
-            p_e = data.get('positive_prob', 0.5)
-            w_e = data.get('weight', 1.0)
-            W_total += w_e
-            
-            if key not in pair_penalties:
-                pair_penalties[key] = {'pos': 0.0, 'neg': 0.0}
-            
-            # Acumula o risco/peso de TODOS os contratos entre este par de nós
-            pair_penalties[key]['pos'] += w_e * p_e
-            pair_penalties[key]['neg'] += w_e * (1 - p_e)
+    # s[i,j] = 1 se i e j pertencem a QUALQUER cluster em comum (i < j)
+    s = {}
+    for i in range(N):
+        for j in range(i+1, N):
+            s[i, j] = solver.IntVar(0, 1, f's_{i}_{j}')
 
-        # Adiciona na função objetivo de forma enxuta
-        for key, penalties in pair_penalties.items():
-            if key in s:
-                # Erro Tipo I: Cortar uma relação que deveria ser positiva
-                # Erro Tipo II: Manter junta uma relação que deveria ser negativa
-                f1_disagreement += penalties['pos'] * (1 - s[key]) + penalties['neg'] * s[key]
+    # ---------------------------------------------------------
+    # 3. RESTRIÇÕES ESTRUTURAIS
+    # ---------------------------------------------------------
+    for j in range(N):
+        # Alocação única: cada nó j pertence a exatamente 1 representante i
+        solver.Add(sum(z[i, j] for i in range(N)) == 1)
+        
+    for i in range(N):
+        # Auto-alocação do representante: z[i,i] == y[i]
+        solver.Add(z[i, i] == y[i])
+        for j in range(N):
+            # Consistência: z[i,j] <= y[i]
+            solver.Add(z[i, j] <= y[i])
 
-        f2_num_clusters = gp.quicksum(y[i] for i in nodes)
+    # ---------------------------------------------------------
+    # 4. RESTRIÇÕES DE LINEARIZAÇÃO 
+    # ---------------------------------------------------------
+    for i in range(N):
+        for j in range(i+1, N):
+            for k in range(N):
+                solver.Add(w[i, j, k] <= z[k, i])
+                solver.Add(w[i, j, k] <= z[k, j])
+                solver.Add(w[i, j, k] >= z[k, i] + z[k, j] - 1)
+                
+            # s[i,j] = soma dos w[i,j,k]
+            solver.Add(s[i, j] == sum(w[i, j, k] for k in range(N)))
 
-        # Normalização dos objetivos
-        N = len(nodes)
-        f1_norm = f1_disagreement / W_total if W_total > 0 else 0
-        f2_norm = f2_num_clusters / N if N > 0 else 0
+    # ---------------------------------------------------------
+    # 5. FUNÇÕES OBJETIVO
+    # ---------------------------------------------------------
+    # F2: Número de Clusters
+    f2_expr = sum(y[i] for i in range(N))
+    
+    # F1: Desequilíbrio Esperado
+    # f1 = sum_{i<j} ( P- * s_ij + P+ * (1 - s_ij) )
+    f1_expr = sum(
+        P_minus[(i, j)] * s[i, j] + P_plus[(i, j)] * (1 - s[i, j])
+        for i in range(N) for j in range(i+1, N)
+    )
 
-        lambda_val = lambda_weight
-        model.setObjective(lambda_val * f1_norm + (1 - lambda_val) * f2_norm, GRB.MINIMIZE)
+    # Objeivo Combinado (Soma Ponderada)
+    # Lembrete: Se F1 e F2 estiverem em escalas muito diferentes, o ideal é normalizar.
+    # Neste script padrão mantemos a formulação bruta Z = lambda * F1 + (1 - lambda) * F2
+    Z = lambda_weight * f1_expr + (1.0 - lambda_weight) * f2_expr
+    
+    solver.Minimize(Z)
 
-        print("  - Multi-objective function built (aggregated for MultiGraph).")
-
-        # --- STAGE 5: Optimize and Process Results ---
-        model.setParam('TimeLimit', time_limit)
-        print(f"\nStarting optimization with lambda = {lambda_val} and time limit = {time_limit}s...")
-        model.optimize()
-        print("Optimization finished.")
-
-        if model.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
-            clusters = _reconstruct_clusters_from_representatives(nodes, z)
-
-            final_f1 = f1_disagreement.getValue()
-            final_f2 = f2_num_clusters.getValue()
-
-            print(f"\n--- Optimization Results ---")
-            print(f"  - Combined Normalized Objective Value (Z): {model.ObjVal:.4f}")
-            print(f"  - Disagreement (f1): {final_f1:.4f}")
-            print(f"  - Number of Clusters (f2): {int(final_f2)}")
-            print(f"  - Solver Execution Time: {model.Runtime:.2f}s")
-
-            return clusters, model.ObjVal, model.Runtime, final_f1, final_f2
-        else:
-            print(f"Could not find a viable solution. Status code: {model.Status}")
-            return None, None, None, None, None
-
-    except gp.GurobiError as e:
-        print(f"A Gurobi error occurred: {e}")
-        return None, None, None, None, None
-    except Exception as e:
-        print(f"An unexpected error occurred during optimization: {e}")
-        return None, None, None, None, None
-
-
-def _reconstruct_clusters_from_representatives(nodes: list, z: dict) -> dict:
-    cluster_map = {}
-    representatives = {i for i in nodes if z[i, i].X > 0.5}
-
-    for j in nodes:
-        for i in representatives:
-            if z[i, j].X > 0.5:
-                cluster_map[j] = i
-                break
-    return cluster_map
+    # ---------------------------------------------------------
+    # 6. RESOLUÇÃO E EXTRAÇÃO DE RESULTADOS
+    # ---------------------------------------------------------
+    status = solver.Solve()
+    
+    exec_time = time.time() - start_time
+    
+    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+        # Extrair a partição de clusters
+        clusters = {}
+        for j in range(N):
+            for i in range(N):
+                if z[i, j].solution_value() > 0.5:
+                    node_name = nodes[j]
+                    repr_name = nodes[i]
+                    clusters[node_name] = repr_name
+                    break
+        
+        # Calcular os valores reais das funções
+        obj_val = solver.Objective().Value()
+        f2_val = sum(y[i].solution_value() for i in range(N))
+        
+        f1_val = sum(
+            P_minus[(i, j)] * s[i, j].solution_value() + P_plus[(i, j)] * (1 - s[i, j].solution_value())
+            for i in range(N) for j in range(i+1, N)
+        )
+        
+        return clusters, obj_val, exec_time, f1_val, f2_val
+    else:
+        # Solver não encontrou nem solução viável no tempo limite
+        return None, None, exec_time, None, None

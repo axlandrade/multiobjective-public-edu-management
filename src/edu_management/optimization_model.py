@@ -1,136 +1,93 @@
-import gurobipy as gp
-from gurobipy import GRB
+# src/edu_management/optimization_model.py
+
+from ortools.linear_solver import pywraplp
 
 def solve_integrated_edu_management(
-    disciplines: list, rooms: list, days: list, shifts: list, foods: list,
-    students_enrolled: dict, room_capacity: dict, food_cost: dict, calories: dict,
-    min_calories: float = 2000, adherence_rate: float = 0.6,
-    lambda_weight: float = 0.5, time_limit: int = 3600
+    disciplines, rooms, days, shifts, foods,
+    students_enrolled, room_capacity,
+    food_cost, calories, min_calories=1200,
+    adherence_rate=0.7, lambda_weight=0.5, time_limit=120
 ):
-    """
-    Resolve o modelo integrado WSAC-WSMS e retorna as grades e cardápios detalhados.
-    Inclui restrições de capacidade, exclusividade física e funcionamento diário.
-    """
-    with gp.Model("edu_integrated_wsac_wsms") as model:
-        
-        model.setParam('OutputFlag', 0)
-        
-        # ==========================================
-        # 1. Variáveis de Decisão WSAC (Salas de Aula)
-        # ==========================================
-        x = model.addVars(disciplines, rooms, days, shifts, vtype=GRB.BINARY, name="x")
-        
-        # OBRIGATÓRIO: A disciplina tem que ocorrer NO MÁXIMO UMA VEZ
-        for i in disciplines:
-            model.addConstr(gp.quicksum(x[i, j, k, l] for j in rooms for k in days for l in shifts) <= 1, name=f"disc_once_{i}")
+    solver = pywraplp.Solver.CreateSolver('SCIP')
+    if not solver:
+        return None
+    solver.SetTimeLimit(time_limit * 1000)
+
+    # ==========================================
+    # 1. VARIÁVEIS DE DECISÃO (COM LIMITES)
+    # ==========================================
+    x = {}
+    for d in disciplines:
+        for r in rooms:
+            for day in days:
+                for shift in shifts:
+                    x[d, r, day, shift] = solver.IntVar(0, 1, f'x_{d}_{r}_{day}_{shift}')
+
+    y = {}
+    # LIMITE: O RU nunca fará mais que 2000 refeições de um mesmo item num único turno.
+    # Isso resolve o bug do infinito no lambda = 1.0
+    for m in foods:
+        for day in days:
+            for shift in shifts:
+                y[m, day, shift] = solver.NumVar(0, 2000, f'y_{m}_{day}_{shift}')
+
+    # ==========================================
+    # 2. RESTRIÇÕES (Iguais)
+    # ==========================================
+    for d in disciplines:
+        solver.Add(solver.Sum([x[d, r, day, shift] for r in rooms for day in days for shift in shifts]) <= 1)
+
+    for d in disciplines:
+        for r in rooms:
+            for day in days:
+                for shift in shifts:
+                    solver.Add(x[d, r, day, shift] * students_enrolled[d] <= room_capacity[r])
+
+    for r in rooms:
+        for day in days:
+            for shift in shifts:
+                solver.Add(solver.Sum([x[d, r, day, shift] for d in disciplines]) <= 1)
+
+    for day in days:
+        for shift in shifts:
+            z_alunos = solver.Sum([x[d, r, day, shift] * students_enrolled[d] for d in disciplines for r in rooms])
+            solver.Add(y['prato_feito', day, shift] >= z_alunos * adherence_rate)
             
-        # OBRIGATÓRIO: A turma não pode ser maior que a capacidade da sala
-        for i in disciplines:
-            for j in rooms:
-                for k in days:
-                    for l in shifts:
-                        model.addConstr(x[i, j, k, l] * students_enrolled[i] <= room_capacity[j], name=f"cap_{i}_{j}_{k}_{l}")
+            calorias_oferecidas = solver.Sum([y[m, day, shift] * calories[m] for m in foods])
+            calorias_necessarias = (z_alunos * adherence_rate) * min_calories
+            solver.Add(calorias_oferecidas >= calorias_necessarias)
 
-        # EXCLUSIVIDADE: Uma sala só pode ter UMA disciplina por turno/dia
-        for j in rooms:
-            for k in days:
-                for l in shifts:
-                    model.addConstr(gp.quicksum(x[i, j, k, l] for i in disciplines) <= 1, name=f"exclusivity_{j}_{k}_{l}")
+    # ==========================================
+    # 3. FUNÇÃO OBJETIVO NORMALIZADA
+    # ==========================================
+    f1_alunos_cobertos = solver.Sum([
+        x[d, r, day, shift] * students_enrolled[d] 
+        for d in disciplines for r in rooms for day in days for shift in shifts
+    ])
+    
+    f2_custo_total = solver.Sum([
+        y[m, day, shift] * food_cost[m] 
+        for m in foods for day in days for shift in shifts
+    ])
 
-        # FUNCIONAMENTO MÍNIMO POR TURNO: A universidade federal nunca para
-        # Todo dia 'k', em todo turno 'l', deve haver pelo menos 1 aula alocada.
-        min_classes_per_shift = 1
-        for k in days:
-            for l in shifts:
-                model.addConstr(
-                    gp.quicksum(x[i, j, k, l] for i in disciplines for j in rooms) >= min_classes_per_shift,
-                    name=f"min_aulas_turno_{k}_{l}"
-                )
+    # NORMALIZAÇÃO: Dividimos alunos por 1000 e custo por 10000 para que ambos variem de ~0.0 a 1.0.
+    # Adicionamos + 0.0001 no peso do custo apenas para impedir que o solver ignore totalmente o custo no lambda=1.0
+    peso_alunos = lambda_weight
+    peso_custo = max(1.0 - lambda_weight, 0.0001)
 
-        # ==========================================
-        # 2. Variáveis de Decisão WSMS (Restaurante Universitário)
-        # ==========================================
-        y = model.addVars(foods, days, shifts, vtype=GRB.CONTINUOUS, lb=0.0, name="y")
-        
-        # Calorias mínimas obrigatórias por turno
-        for k in days:
-            for l in shifts:
-                model.addConstr(gp.quicksum(y[f, k, l] * calories[f] for f in foods) >= min_calories, name=f"nutri_{k}_{l}")
+    solver.Minimize(
+        peso_alunos * (-f1_alunos_cobertos / 1000.0) + peso_custo * (f2_custo_total / 10000.0)
+    )
 
-        # ==========================================
-        # 3. Ponte de Acoplamento WSAC -> WSMS
-        # ==========================================
-        A = model.addVars(days, shifts, vtype=GRB.INTEGER, name="AlunosAula")
-        
-        for k in days:
-            for l in shifts:
-                # Calcula os alunos presentes na universidade naquele turno exato
-                model.addConstr(
-                    A[k, l] == gp.quicksum(x[i, j, k, l] * students_enrolled[i] for i in disciplines for j in rooms),
-                    name=f"alunos_aula_{k}_{l}"
-                )
-                
-                # A quantidade do 'prato_feito' no RU deve cobrir a taxa de adesão dos alunos em aula
-                model.addConstr(
-                    y['prato_feito', k, l] >= adherence_rate * A[k, l],
-                    name=f"acoplamento_ru_{k}_{l}"
-                )
+    # ==========================================
+    # 4. RESOLUÇÃO E EXTRAÇÃO DOS DADOS
+    # ==========================================
+    status = solver.Solve()
 
-        # ==========================================
-        # 4. Funções Objetivo (Normalizadas)
-        # ==========================================
-        f1_cobertura = gp.quicksum(x[i, j, k, l] * students_enrolled[i] for i in disciplines for j in rooms for k in days for l in shifts)
-        f2_custo = gp.quicksum(y[f, k, l] * food_cost[f] for f in foods for k in days for l in shifts)
-        
-        # Normalização empírica para balancear as escalas (0-1) e gerar Pareto viável
-        f1_max = sum(students_enrolled[i] for i in disciplines)
-        f2_max = 2000.0 # Um valor grande estimado para o orçamento teto do RU
-        
-        # Evita divisão por zero
-        f1_max = f1_max if f1_max > 0 else 1.0
-        
-        f1_norm = f1_cobertura / f1_max
-        f2_norm = f2_custo / f2_max
-
-        # Gurobi minimiza por padrão
-        model.ModelSense = GRB.MINIMIZE
-        
-        # Objetivo Ponderado (-f1 porque queremos maximizar alunos, e +f2 porque queremos minimizar custos)
-        model.setObjective(lambda_weight * (-f1_norm) + (1 - lambda_weight) * f2_norm)
-        
-        # ==========================================
-        # 5. Otimização e Extração
-        # ==========================================
-        model.setParam('TimeLimit', time_limit)
-        model.optimize()
-        
-        if model.Status in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
-            schedule = []
-            for i in disciplines:
-                for j in rooms:
-                    for k in days:
-                        for l in shifts:
-                            if x[i, j, k, l].X > 0.5:
-                                schedule.append({
-                                    'Dia': k, 'Turno': l, 'Sala': j, 
-                                    'Disciplina': i, 'Alunos': students_enrolled[i]
-                                })
-            menu = []
-            for k in days:
-                for l in shifts:
-                    for f in foods:
-                        qtd = y[f, k, l].X
-                        if qtd > 0.01:
-                            menu.append({
-                                'Dia': k, 'Turno': l, 
-                                'Item': f, 'Quantidade': round(qtd, 1)
-                            })
-                            
-            return {
-                'f1_alunos_cobertos': int(f1_cobertura.getValue()),
-                'f2_custo_total': round(f2_custo.getValue(), 2),
-                'grade_horaria': schedule,
-                'cardapio_ru': menu
-            }
-        else:
-            return None
+    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+        return {
+            'f1_alunos_cobertos': f1_alunos_cobertos.solution_value(),
+            'f2_custo_total': f2_custo_total.solution_value()
+        }
+    else:
+        return None

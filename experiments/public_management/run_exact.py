@@ -3,11 +3,14 @@ import os
 import pandas as pd
 import time
 
-# --- IMPORTS ATUALIZADOS PARA A NOVA ESTRUTURA DE PASTAS ---
-from src.public_management.create_real_network import main as create_real_network_main
+
+# --- IMPORTS PARA A NOVA ESTRUTURA E OR-TOOLS ---
+# Importamos a função de criação da rede usando seu nome verdadeiro:
+from src.public_management.create_real_network import process_and_save_network
 from src.public_management.graph_constructor import build_multigraph_from_csv
 from src.public_management.optimization_model import solve_multigraph_cc
 from src.public_management.visualizer import visualize_and_save_graph
+
 
 def print_cluster_summary(clusters: dict):
     """Imprime um resumo da partição de clusters encontrada."""
@@ -25,8 +28,9 @@ def print_cluster_summary(clusters: dict):
         print(f"Cluster representado por '{cid}': {members}")
     print("---------------------------------------")
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Executa o MODELO EXATO (PLI) nos dados reais.")
+    parser = argparse.ArgumentParser(description="Executa o MODELO EXATO (PLI via OR-Tools) nos dados reais.")
     
     parser.add_argument(
         '--lambda_weight', 
@@ -38,14 +42,15 @@ def main():
         '--time_limit', 
         type=int, 
         default=3600, # Padrão de 1 hora
-        help="Limite de tempo em segundos para o solver de otimização."
+        help="Limite de tempo em segundos para o solver de otimização (OR-Tools)."
     )
     
     args = parser.parse_args()
 
+
     # --- AVISO DE PERFORMANCE ---
     print("="*70)
-    print("ATENÇÃO: EXECUTANDO O MODELO EXATO EM DADOS REAIS")
+    print("ATENÇÃO: EXECUTANDO O MODELO EXATO EM DADOS REAIS VIA OR-TOOLS")
     print("="*70)
     print("Este script é destinado a testes de viabilidade em pequena escala.")
     print("Devido à complexidade computacional (O(N³)), é esperado que o solver")
@@ -56,13 +61,22 @@ def main():
     
     # --- ETAPA 1: Preparar os dados da rede real ---
     print("\n--- Etapa 1: Preparando o arquivo da rede de dados reais ---")
-    # Chama a função principal de create_real_network.py para garantir que o arquivo de entrada exista
-    create_real_network_main()
-    real_data_path = 'data/public_management/raw/rede_real_input.csv' # AJUSTEI O CAMINHO AQUI PARA A NOVA ESTRUTURA
     
-    if not os.path.exists(real_data_path):
-        print(f"ERRO: Não foi possível criar ou encontrar o arquivo '{real_data_path}'. Abortando.")
+    # Arquivos fixos baseados na estrutura do projeto
+    raw_data_path = 'data/contratos_enriquecidos.csv'
+    real_data_path = 'data/rede_real_input.csv'
+    
+    # Invoca a função do seu módulo passando os paths, gerando o CSV de input
+    try:
+        process_and_save_network(raw_data_path, real_data_path)
+    except Exception as e:
+        print(f"ERRO ao criar a rede real: {e}")
         return
+        
+    if not os.path.exists(real_data_path):
+        print(f"ERRO: Não foi possível encontrar o arquivo gerado '{real_data_path}'. Abortando.")
+        return
+
 
     # --- ETAPA 2: Executar o modelo de otimização ---
     print("\n--- Etapa 2: Iniciando a otimização exata ---")
@@ -71,17 +85,19 @@ def main():
     G = build_multigraph_from_csv(real_data_path)
     if not G: return
     
-    output_dir = f"results_exact_real/lambda_{args.lambda_weight}"
+    output_dir = f"results_exact_real_ortools/lambda_{args.lambda_weight}"
     
-    # Chama o solver exato do seu módulo de otimização
+    # Chama o solver exato do módulo de otimização
     results = solve_multigraph_cc(G, lambda_weight=args.lambda_weight, time_limit=args.time_limit)
-    if not results[0]:  # Verifica se o primeiro valor de retorno (clusters) é None
-        print("\n--- ANÁLISE CONCLUÍDA (sem solução viável) ---")
+    if not results or not results[0]:  
+        print("\n--- ANÁLISE CONCLUÍDA (sem solução viável no tempo estipulado) ---")
         return
+
 
     clusters, obj_val, exec_time, f1_disagreement, f2_num_clusters = results
     
     print_cluster_summary(clusters)
+
 
     # --- ETAPA 3: Salvar os resultados ---
     print("\n--- Etapa 3: Salvando os resultados ---")
@@ -113,6 +129,7 @@ def main():
         print(f"Ocorreu um erro ao salvar os resultados: {e}")
             
     print("\n--- ANÁLISE COMPLETA ---")
+
 
 if __name__ == '__main__':
     main()
