@@ -24,6 +24,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from deap import tools, algorithms
 
+from src.edu_management.genetic_algorithm import setup_edu_genetic_algorithm
 from src.edu_management.optimization_model import solve_integrated_edu_management
 from src.public_management.create_real_network import process_and_save_network
 from src.public_management.genetic_algorithm import setup_genetic_algorithm
@@ -410,6 +411,81 @@ def build_edu_demo_instance() -> dict:
     }
 
 
+def decode_edu_individual(
+    individual,
+    disciplines: list[str],
+    slots: list[dict],
+    students_enrolled: dict[str, int],
+    food_cost: dict[str, float],
+    calories: dict[str, float],
+    *,
+    min_calories: float = 1200,
+    adherence_rate: float = 0.7,
+) -> dict:
+    """Decode an educational GA chromosome into managerial metrics and schedule."""
+    schedule = []
+    students_by_shift = {}
+    used_slots = set()
+    valid = True
+
+    for idx_disc, slot_id in enumerate(individual):
+        if slot_id == -1:
+            continue
+        if slot_id in used_slots:
+            valid = False
+            break
+        used_slots.add(slot_id)
+
+        discipline = disciplines[idx_disc]
+        slot = slots[slot_id]
+        students = students_enrolled[discipline]
+        schedule.append({
+            "Dia": slot["Dia"],
+            "Turno": slot["Turno"],
+            "Sala": slot["Sala"],
+            "Disciplina": discipline,
+            "Alunos": students,
+        })
+        key = (slot["Dia"], slot["Turno"])
+        students_by_shift[key] = students_by_shift.get(key, 0) + students
+
+    if not valid:
+        return {"valid": False}
+
+    menu = []
+    total_cost = 0.0
+    for day in sorted({slot["Dia"] for slot in slots}):
+        for shift in sorted({slot["Turno"] for slot in slots}):
+            students = students_by_shift.get((day, shift), 0)
+            meals = int(students * adherence_rate)
+            shift_cost = meals * food_cost["prato_feito"]
+            calories_served = meals * calories["prato_feito"]
+
+            if meals:
+                menu.append({"Dia": day, "Turno": shift, "Item": "prato_feito", "Quantidade": meals})
+
+            missing_calories = min_calories - calories_served
+            if missing_calories > 0:
+                salad_servings = missing_calories / calories["salada_extra"]
+                shift_cost += salad_servings * food_cost["salada_extra"]
+                menu.append({
+                    "Dia": day,
+                    "Turno": shift,
+                    "Item": "salada_extra",
+                    "Quantidade": round(salad_servings, 2),
+                })
+
+            total_cost += shift_cost
+
+    return {
+        "valid": True,
+        "f1_alunos": int(sum(item["Alunos"] for item in schedule)),
+        "f2_custo_ru": round(total_cost, 2),
+        "grade_horaria": schedule,
+        "cardapio_ru": menu,
+    }
+
+
 def render_edu_exact() -> None:
     """Run the integrated educational OR-Tools model for multiple lambdas."""
     st.subheader("Gestao educacional: varredura exata")
@@ -425,6 +501,7 @@ def render_edu_exact() -> None:
     if st.button("Executar varredura educacional", type="primary"):
         lambdas = [float(value.strip()) for value in lambda_text.split(",") if value.strip()]
         rows = []
+        details = {}
         progress = st.progress(0, text="Iniciando varredura...")
 
         for idx, lambda_weight in enumerate(lambdas, start=1):
@@ -446,14 +523,20 @@ def render_edu_exact() -> None:
                 time_limit=int(time_limit),
             )
             if result:
+                solution_id = f"lambda_{lambda_weight:g}"
                 rows.append(
                     {
+                        "solution_id": solution_id,
                         "lambda": lambda_weight,
                         "f1_alunos": int(result["f1_alunos_cobertos"]),
                         "f2_custo_ru": round(result["f2_custo_total"], 2),
                         "tempo_execucao_s": round(time.time() - start, 2),
                     }
                 )
+                details[solution_id] = {
+                    "grade_horaria": result.get("grade_horaria", []),
+                    "cardapio_ru": result.get("cardapio_ru", []),
+                }
 
         if not rows:
             st.warning("Nenhuma solucao foi encontrada.")
@@ -472,6 +555,12 @@ def render_edu_exact() -> None:
                 file_name="pareto_edu_exact.csv",
                 mime="text/csv",
             )
+            st.download_button(
+                "Baixar detalhes JSON",
+                json.dumps(details, indent=2, ensure_ascii=False).encode("utf-8"),
+                file_name="detalhes_edu_exact.json",
+                mime="application/json",
+            )
         with right:
             fig = px.line(
                 df,
@@ -482,6 +571,175 @@ def render_edu_exact() -> None:
                 title="Trade-off cobertura discente x custo RU",
             )
             st.plotly_chart(fig, use_container_width=True)
+
+        selected_solution = st.selectbox("Inspecionar solucao", list(details.keys()))
+        if selected_solution:
+            grade_df = pd.DataFrame(details[selected_solution]["grade_horaria"])
+            menu_df = pd.DataFrame(details[selected_solution]["cardapio_ru"])
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Grade WSAC**")
+                st.dataframe(grade_df, use_container_width=True, hide_index=True)
+            with c2:
+                st.markdown("**Cardapio WSMS**")
+                st.dataframe(menu_df, use_container_width=True, hide_index=True)
+
+
+def run_edu_ga(
+    instance: dict,
+    pop_size: int,
+    ngen: int,
+    cxpb: float,
+    mutpb: float,
+    progress_callback: Callable[[int, str], None],
+) -> tuple[pd.DataFrame, dict]:
+    """Run the educational NSGA-II model and return Pareto metrics plus details."""
+    toolbox, slots = setup_edu_genetic_algorithm(
+        disciplines=instance["disciplines"],
+        rooms=instance["rooms"],
+        days=instance["days"],
+        shifts=instance["shifts"],
+        students_enrolled=instance["students_enrolled"],
+        food_cost=instance["food_cost"],
+        calories=instance["calories"],
+        min_calories=1200,
+        adherence_rate=0.7,
+    )
+
+    population = toolbox.population(n=pop_size)
+    pareto_front = tools.ParetoFront()
+    stats = tools.Statistics(lambda ind: ind.fitness.values)
+    stats.register("min", np.min, axis=0)
+
+    fitnesses = list(map(toolbox.evaluate, population))
+    for ind, fit in zip(population, fitnesses):
+        ind.fitness.values = fit
+    pareto_front.update(population)
+
+    for generation in range(1, ngen + 1):
+        offspring = toolbox.select(population, len(population))
+        offspring = algorithms.varAnd(offspring, toolbox, cxpb, mutpb)
+        invalid = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = list(map(toolbox.evaluate, invalid))
+        for ind, fit in zip(invalid, fitnesses):
+            ind.fitness.values = fit
+        pareto_front.update(offspring)
+        population[:] = toolbox.select(population + offspring, pop_size)
+        record = stats.compile(population)
+        progress_callback(generation, f"Geracao {generation}/{ngen} | min={record['min']}")
+
+    rows = []
+    details = {}
+    for idx, individual in enumerate(pareto_front):
+        decoded = decode_edu_individual(
+            individual,
+            instance["disciplines"],
+            slots,
+            instance["students_enrolled"],
+            instance["food_cost"],
+            instance["calories"],
+        )
+        if not decoded.get("valid") or decoded["f1_alunos"] == 0:
+            continue
+        solution_id = f"NSGA_{idx:03d}"
+        rows.append({
+            "solution_id": solution_id,
+            "f1_alunos": decoded["f1_alunos"],
+            "f2_custo_ru": decoded["f2_custo_ru"],
+            "cromossomo": list(individual),
+        })
+        details[solution_id] = {
+            "grade_horaria": decoded["grade_horaria"],
+            "cardapio_ru": decoded["cardapio_ru"],
+        }
+
+    if not rows:
+        return pd.DataFrame(), {}
+
+    df = (
+        pd.DataFrame(rows)
+        .sort_values(["f1_alunos", "f2_custo_ru"])
+        .drop_duplicates(subset=["f1_alunos", "f2_custo_ru"])
+        .reset_index(drop=True)
+    )
+    return df, details
+
+
+def render_edu_heuristic() -> None:
+    """Run the integrated educational NSGA-II model from the dashboard."""
+    st.subheader("Gestao educacional: WSAC + WSMS via NSGA-II")
+    instance = build_edu_demo_instance()
+    st.caption(
+        f"Cenario sintetico: {len(instance['disciplines'])} disciplinas, "
+        f"{len(instance['rooms'])} salas, {sum(instance['students_enrolled'].values())} alunos."
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    pop_size = c1.number_input("Populacao", 20, 3000, 200, step=20, key="edu_pop")
+    ngen = c2.number_input("Geracoes", 5, 1500, 150, step=5, key="edu_gen")
+    cxpb = c3.slider("Crossover", 0.0, 1.0, 0.5, 0.05, key="edu_cx")
+    mutpb = c4.slider("Mutacao", 0.0, 1.0, 0.3, 0.05, key="edu_mut")
+
+    if st.button("Executar NSGA-II educacional", type="primary"):
+        progress = st.progress(0, text="Iniciando evolucao educacional...")
+
+        def update_progress(generation: int, text: str) -> None:
+            progress.progress(generation / int(ngen), text=text)
+
+        start = time.time()
+        df, details = run_edu_ga(
+            instance,
+            int(pop_size),
+            int(ngen),
+            float(cxpb),
+            float(mutpb),
+            update_progress,
+        )
+
+        if df.empty:
+            st.warning("Nenhuma solucao valida foi encontrada.")
+            return
+
+        c1, c2 = st.columns(2)
+        c1.metric("Solucoes Pareto", len(df))
+        c2.metric("Tempo", f"{time.time() - start:.2f}s")
+
+        left, right = st.columns([0.45, 0.55])
+        with left:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.download_button(
+                "Baixar Pareto educacional CSV",
+                df.to_csv(index=False).encode("utf-8"),
+                file_name="pareto_edu_nsga2.csv",
+                mime="text/csv",
+            )
+            st.download_button(
+                "Baixar detalhes JSON",
+                json.dumps(details, indent=2, ensure_ascii=False).encode("utf-8"),
+                file_name="detalhes_edu_nsga2.json",
+                mime="application/json",
+            )
+        with right:
+            fig = px.scatter(
+                df,
+                x="f2_custo_ru",
+                y="f1_alunos",
+                hover_name="solution_id",
+                title="Fronteira WSAC + WSMS aproximada",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        selected_solution = st.selectbox("Inspecionar solucao NSGA-II", list(details.keys()))
+        if selected_solution:
+            grade_df = pd.DataFrame(details[selected_solution]["grade_horaria"])
+            menu_df = pd.DataFrame(details[selected_solution]["cardapio_ru"])
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Grade WSAC**")
+                st.dataframe(grade_df, use_container_width=True, hide_index=True)
+            with c2:
+                st.markdown("**Cardapio WSMS**")
+                st.dataframe(menu_df, use_container_width=True, hide_index=True)
 
 
 def render_real_data_processing() -> None:
@@ -619,6 +877,7 @@ def main() -> None:
                 "Publica - exato",
                 "Publica - NSGA-II",
                 "Educacional - exato",
+                "Educacional - NSGA-II",
             ],
         )
 
@@ -632,6 +891,8 @@ def main() -> None:
         render_public_heuristic()
     elif page == "Educacional - exato":
         render_edu_exact()
+    elif page == "Educacional - NSGA-II":
+        render_edu_heuristic()
 
 
 if __name__ == "__main__":

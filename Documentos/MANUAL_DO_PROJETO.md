@@ -202,7 +202,10 @@ projeto em fluxos web:
   converte CSV enriquecido em rede de entrada.
 - Publica - exato: executa o modelo OR-Tools de correlation clustering.
 - Publica - NSGA-II: executa a heuristica evolutiva e gera a fronteira.
-- Educacional - exato: faz a varredura de lambdas no modelo WSAC-WSMS.
+- Educacional - exato: faz a varredura de lambdas no modelo WSAC-WSMS e mostra
+  grade horaria/cardapio.
+- Educacional - NSGA-II: gera a fronteira heuristica integrada WSAC+WSMS e
+  permite baixar solucoes e detalhes em JSON.
 
 Para abrir:
 

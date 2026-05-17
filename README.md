@@ -28,6 +28,7 @@ A dashboard permite:
 - enriquecer contratos coletados e gerar a rede de entrada automaticamente;
 - executar o modelo exato de gestao publica;
 - executar a heuristica NSGA-II de gestao publica;
+- executar o modelo integrado WSAC+WSMS exato e por NSGA-II;
 - visualizar fronteiras de Pareto;
 - executar uma varredura educacional exata em instancia sintetica;
 - baixar CSVs de resultados.

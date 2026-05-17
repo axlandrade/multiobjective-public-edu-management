@@ -98,9 +98,38 @@ def solve_integrated_edu_management(
     status = solver.Solve()
 
     if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+        schedule = []
+        for d in disciplines:
+            for r in rooms:
+                for day in days:
+                    for shift in shifts:
+                        if x[d, r, day, shift].solution_value() > 0.5:
+                            schedule.append({
+                                'Dia': day,
+                                'Turno': shift,
+                                'Sala': r,
+                                'Disciplina': d,
+                                'Alunos': students_enrolled[d],
+                            })
+
+        menu = []
+        for day in days:
+            for shift in shifts:
+                for food in foods:
+                    quantity = y[food, day, shift].solution_value()
+                    if quantity > 0.01:
+                        menu.append({
+                            'Dia': day,
+                            'Turno': shift,
+                            'Item': food,
+                            'Quantidade': round(quantity, 2),
+                        })
+
         return {
             'f1_alunos_cobertos': f1_alunos_cobertos.solution_value(),
-            'f2_custo_total': f2_custo_total.solution_value()
+            'f2_custo_total': f2_custo_total.solution_value(),
+            'grade_horaria': schedule,
+            'cardapio_ru': menu,
         }
     else:
         return None
