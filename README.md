@@ -1,73 +1,108 @@
-# Otimização Multiobjetivo na Gestão Pública e Educacional
+# Otimizacao multiobjetivo na gestao publica e educacional
 
-Este projeto é a implementação computacional da dissertação de mestrado *"Abordagens de Otimização Multiobjetivo na Gestão Pública e Educacional: Resolução de Demandas Integradas e Detecção de Padrões"*. 
+Este repositorio implementa modelos exatos e heuristicas para apoiar decisoes
+multiobjetivo em dois dominios:
 
-O repositório abriga formulações matemáticas e heurísticas aplicadas a dois grandes contextos de tomada de decisão:
+1. **Gestao publica:** deteccao de padroes de risco em contratacoes publicas
+   modeladas como multigrafos, usando correlation clustering probabilistico.
+2. **Gestao educacional:** integracao entre alocacao de disciplinas em salas
+   (WSAC) e planejamento de refeicoes do restaurante universitario (WSMS).
 
-1. **Gestão Pública:** Detecção de redes de corrupção em licitações modeladas como multigrafos sinalizados, utilizando o problema de *Correlation Clustering* (CC) probabilístico para identificar grupos de risco.
-2. **Gestão Educacional:** Integração multiobjetivo das rotinas operacionais de universidades públicas, acoplando a alocação de turmas em salas de aula (WSAC) ao planejamento nutricional de restaurantes universitários (WSMS).
+O projeto usa Python, OR-Tools/SCIP para modelos exatos e DEAP/NSGA-II para
+heuristicas evolutivas.
 
-O framework implementa abordagens exatas e heurísticas para a construção de Fronteiras de Pareto, visando fornecer suporte robusto à tomada de decisão de gestores.
+## Dashboard web
 
-## Funcionalidades
+A antiga interface desktop em PySide6 foi substituida por uma dashboard web em
+Streamlit:
 
-- **Modelos Exatos (PLI/MILP):** Formulações de Programação Linear Inteira e Mista utilizando `gurobipy` para encontrar soluções ótimas em redes menores e cenários específicos.
-- **Modelos Heurísticos (AG):** Meta-heurísticas baseadas no Algoritmo Genético Multiobjetivo (NSGA-II) utilizando a biblioteca `DEAP`, projetadas para contornar a explosão combinatória e escalar para instâncias de grande porte.
-- **Análise de Fronteiras de Pareto:** Geração de conjuntos de soluções não dominadas, permitindo avaliar o *trade-off* entre interpretabilidade vs. desequilíbrio estrutural (Gestão Pública) e cobertura discente vs. custos nutricionais (Gestão Educacional).
-- **Interface Gráfica Desktop (Em desenvolvimento):** Dashboard desenvolvido com **PySide6 (Qt for Python)** para gerenciar as execuções, instâncias e visualizar os resultados de forma interativa.
-
-## Estrutura Inicial do Projeto
-
-A arquitetura do projeto divide as lógicas dos dois domínios da dissertação:
-
-```text
-    .
-    ├── data/
-    │   ├── public_management/    # Instâncias sintéticas e reais de licitações
-    │   └── edu_management/       # Dados de disciplinas, salas e parâmetros nutricionais
-    ├── src/
-    │   ├── public_management/    # Lógica de grafos, PLI e NSGA-II para detecção de corrupção
-    │   ├── edu_management/       # Formulação integrada WSAC-WSMS
-    │   ├── core/                 # Módulos compartilhados (ex: utilitários de Pareto)
-    │   └── gui/                  # Componentes da interface gráfica PySide6
-    ├── requirements.txt          # Dependências Python
-    └── README.md                 # Este arquivo
+```powershell
+streamlit run gui/dashboard_web.py
 ```
 
-## Configuração do Ambiente Local
+A dashboard permite:
 
-Este projeto utiliza um ambiente virtual Python (`venv`) para gerenciar as dependências de forma isolada.
+- processar CSV bruto de contratos em uma rede padronizada;
+- executar o modelo exato de gestao publica;
+- executar a heuristica NSGA-II de gestao publica;
+- visualizar fronteiras de Pareto;
+- executar uma varredura educacional exata em instancia sintetica;
+- baixar CSVs de resultados.
 
-### Pré-requisitos
+## Estrutura
 
-1. **Python 3.9+** instalado no seu sistema.
-2. **Git** para clonar o repositório.
-3. **Gurobi Optimizer:** É necessária uma licença válida do solver Gurobi para executar as abordagens exatas. A [licença acadêmica gratuita](https://www.gurobi.com/academia/academic-program-and-licenses/) é recomendada e atende aos requisitos estruturais dos modelos.
+```text
+.
+|-- main.py
+|-- requirements.txt
+|-- setup.py
+|-- Dockerfile
+|-- gui/
+|   |-- dashboard_web.py
+|-- src/
+|   |-- public_management/
+|   |-- edu_management/
+|-- experiments/
+|   |-- public_management/
+|   |-- edu_management/
+|-- Documentos/
+```
 
-### Instalação
+## Principais modulos
 
-1. Clone este repositório:
-   ```bash
-   git clone https://github.com/axlandrade/multiobjective-public-edu-management.git
-   cd multiobjective-public-edu-management
-   ```
+### `src/public_management`
 
-2. Crie e ative um ambiente virtual:
-   ```bash
-   # Cria o ambiente
-   python -m venv .venv
+- `graph_constructor.py`: constroi um `networkx.MultiGraph` a partir de CSV.
+- `create_real_network.py`: transforma contratos brutos em arestas com score de
+  risco.
+- `optimization_model.py`: resolve o modelo exato de correlation clustering com
+  OR-Tools.
+- `genetic_algorithm.py`: configura o NSGA-II para gerar fronteiras aproximadas.
+- `instance_generator.py`: cria instancias sinteticas.
+- `visualizer.py`: salva visualizacoes estaticas dos grafos.
 
-   # Ativa o ambiente (Windows PowerShell)
-   .\.venv\Scripts\Activate.ps1
+### `src/edu_management`
 
-   # Ativa o ambiente (Linux/macOS/Git Bash)
-   source .venv/bin/activate
-   ```
+- `optimization_model.py`: resolve o modelo integrado WSAC-WSMS com OR-Tools.
+- `genetic_algorithm.py`: configura a heuristica NSGA-II educacional.
 
-3. Instale as dependências necessárias:
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
+### `experiments`
 
-*(Nota: As instruções detalhadas de execução dos experimentos via linha de comando ou interface gráfica serão documentadas futuramente, conforme a consolidação do programa final).*
+Scripts de linha de comando para execucoes reprodutiveis dos modelos exatos,
+heuristicos e agrupamentos de solucoes.
+
+## Instalacao
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+```
+
+## Exemplos de execucao
+
+Modelo publico exato:
+
+```powershell
+python main.py --data data\rede_real_input.csv --output_dir results --lambda_weight 0.5 --time_limit 3600
+```
+
+Heuristica de gestao publica:
+
+```powershell
+python experiments\public_management\run_heuristic.py --data data\rede_real_input.csv --output_dir results_real_data
+```
+
+Varredura educacional exata:
+
+```powershell
+python experiments\edu_management\run_exact.py
+```
+
+Dashboard web:
+
+```powershell
+streamlit run gui/dashboard_web.py
+```

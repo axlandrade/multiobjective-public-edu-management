@@ -7,18 +7,13 @@ networkx
 matplotlib
 
 # Exact optimization backends.
-gurobipy
 ortools
 
 # Notebook support for exploratory analyses.
 jupyter
 notebook
 
-# Evolutionary algorithms and desktop interface.
+# Evolutionary algorithms and web dashboard.
 deap
-pyside6
 plotly
-
-# Optional AI interpretation providers used by the GUI.
-openai
-google-generativeai
+streamlit

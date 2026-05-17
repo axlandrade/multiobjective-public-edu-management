@@ -82,9 +82,8 @@ Scripts prontos para execucoes experimentais.
 
 ### `gui`
 
-`gui/app_desktop.py` implementa uma interface grafica em PySide6 para executar
-analises, visualizar fronteiras, inspecionar clusters e gerar interpretacoes
-com provedores de IA externos.
+`gui/dashboard_web.py` implementa uma dashboard web em Streamlit para executar
+analises, visualizar fronteiras, processar dados reais e baixar resultados.
 
 ## 3. Fluxo da gestao publica
 
@@ -181,16 +180,22 @@ No NSGA-II educacional, o cromossomo tem uma posicao por disciplina. Cada valor 
 A aptidao penaliza solucoes invalidas, como duas disciplinas no mesmo slot, mas
 mantem as metricas reais para relatorio da fronteira de Pareto.
 
-## 5. Interface grafica
+## 5. Dashboard web
 
-A GUI em `gui/app_desktop.py` organiza o projeto em abas:
+A interface atual fica em `gui/dashboard_web.py` e usa Streamlit. Ela organiza o
+projeto em fluxos web:
 
-- Validacao: compara modelo exato e heuristico em instancias sinteticas.
-- Analise Real: processa CSV real e executa a heuristica.
-- Inspecao: visualiza clusters especificos.
-- IA: envia resumo da fronteira para um provedor externo e recebe interpretacao.
+- Visao geral: resume o framework, solver e heuristica usados.
+- Processar contratos: converte CSV bruto em rede de entrada.
+- Publica - exato: executa o modelo OR-Tools de correlation clustering.
+- Publica - NSGA-II: executa a heuristica evolutiva e gera a fronteira.
+- Educacional - exato: faz a varredura de lambdas no modelo WSAC-WSMS.
 
-As execucoes pesadas rodam em `QThread` para nao travar a janela principal.
+Para abrir:
+
+```powershell
+streamlit run gui/dashboard_web.py
+```
 
 ## 6. Como instalar
 
@@ -255,8 +260,8 @@ As pastas de saida mais comuns sao `results_edu`, `results_real_data`,
   evolucao do projeto, mas nao sao o caminho principal atual.
 - O arquivo `.devcontainer/devcontainer.json` nao foi comentado internamente
   porque JSON padrao nao aceita comentarios.
-- A GUI possui integracoes opcionais com OpenAI e Google Gemini. Essas rotinas
-  exigem bibliotecas instaladas e chaves de API fornecidas pelo usuario.
+- A antiga GUI desktop em PySide6 foi removida para simplificar a manutencao e
+  concentrar a experiencia em uma dashboard web.
 - Para instancias grandes, prefira os scripts heuristicas com NSGA-II. O modelo
   exato pode crescer rapidamente em numero de variaveis e restricoes.
 
