@@ -197,6 +197,16 @@ Para abrir:
 streamlit run gui/dashboard_web.py
 ```
 
+Tambem e possivel abrir a dashboard via Docker:
+
+```powershell
+docker build -t multiobjective-management .
+docker run --rm -p 8501:8501 multiobjective-management
+```
+
+A imagem expõe a porta `8501`, executa `streamlit run gui/dashboard_web.py` por
+padrao e inclui um healthcheck para a rota interna do Streamlit.
+
 ## 6. Como instalar
 
 No PowerShell:
@@ -241,6 +251,13 @@ python experiments\edu_management\run_heuristic.py
 python experiments\edu_management\cluster_pareto.py
 ```
 
+### Docker
+
+```powershell
+docker build -t multiobjective-management .
+docker run --rm -p 8501:8501 multiobjective-management
+```
+
 ## 8. Saidas geradas
 
 O projeto pode gerar:
@@ -256,8 +273,8 @@ As pastas de saida mais comuns sao `results_edu`, `results_real_data`,
 
 ## 9. Observacoes importantes
 
-- Os arquivos `*_bak.py` sao versoes legadas em Gurobi. Eles ajudam a entender a
-  evolucao do projeto, mas nao sao o caminho principal atual.
+- Os arquivos legados `*_bak.py` foram removidos para manter apenas os modelos
+  ativos baseados em OR-Tools.
 - O arquivo `.devcontainer/devcontainer.json` nao foi comentado internamente
   porque JSON padrao nao aceita comentarios.
 - A antiga GUI desktop em PySide6 foi removida para simplificar a manutencao e

@@ -106,3 +106,20 @@ Dashboard web:
 ```powershell
 streamlit run gui/dashboard_web.py
 ```
+
+## Docker
+
+Build da imagem:
+
+```powershell
+docker build -t multiobjective-management .
+```
+
+Executar a dashboard em `http://localhost:8501`:
+
+```powershell
+docker run --rm -p 8501:8501 multiobjective-management
+```
+
+O `Dockerfile` instala as dependencias de `requirements.txt`, instala o projeto
+em modo editavel e inicia a dashboard Streamlit por padrao.
