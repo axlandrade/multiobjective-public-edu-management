@@ -1,4 +1,5 @@
 .git
+.integration
 .gitignore
 .venv
 venv

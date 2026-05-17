@@ -1,6 +1,7 @@
 # Core data manipulation and numerical routines.
 pandas
 numpy
+requests
 
 # Graph modeling and visualization.
 networkx

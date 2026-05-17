@@ -46,9 +46,11 @@ Contem a logica do dominio de gestao publica.
   `networkx.MultiGraph`.
 - `create_real_network.py`: transforma dados brutos de contratos em uma rede
   padronizada com `node_1`, `node_2`, `positive_prob` e `weight`.
+- `transparency_collector.py`: integra a antiga logica do Malha Transparencia,
+  coletando contratos por CNPJ na API do Portal da Transparencia e aplainando
+  os dados aninhados retornados.
 - `optimization_model.py`: modelo exato via OR-Tools/SCIP para correlation
   clustering multiobjetivo.
-- `optimization_model_bak.py`: versao legada em Gurobi, mantida como referencia.
 - `genetic_algorithm.py`: configuracao do NSGA-II via DEAP para gerar solucoes
   aproximadas em instancias maiores.
 - `instance_generator.py`: gera instancias sinteticas de multigrafos.
@@ -60,8 +62,6 @@ Contem a logica do dominio de gestao educacional.
 
 - `optimization_model.py`: modelo exato via OR-Tools que integra alocacao de
   disciplinas e planejamento alimentar.
-- `optimization_model_bak.py`: versao legada em Gurobi que tambem retorna grade
-  horaria e cardapio detalhado.
 - `genetic_algorithm.py`: configuracao do NSGA-II para evoluir grades de
   horarios e avaliar custo do restaurante universitario.
 
@@ -86,6 +86,18 @@ Scripts prontos para execucoes experimentais.
 analises, visualizar fronteiras, processar dados reais e baixar resultados.
 
 ## 3. Fluxo da gestao publica
+
+### Coleta no Portal da Transparencia
+
+O projeto incorpora o fluxo do repositorio `axlandrade/malha-transparencia`.
+Na dashboard, a aba de processamento permite informar uma chave da API de Dados
+Abertos do Portal da Transparencia e uma lista de CNPJs. O sistema:
+
+1. consulta a API por CNPJ com paginacao;
+2. consolida contratos e remove duplicatas;
+3. aplaina campos aninhados como fornecedor, unidade gestora e compra;
+4. salva `contratos_consolidados.csv` e `contratos_enriquecidos.csv`;
+5. gera `rede_real_input.csv`, pronto para o modelo de gestao publica.
 
 ### Entrada esperada
 
@@ -186,7 +198,8 @@ A interface atual fica em `gui/dashboard_web.py` e usa Streamlit. Ela organiza o
 projeto em fluxos web:
 
 - Visao geral: resume o framework, solver e heuristica usados.
-- Processar contratos: converte CSV bruto em rede de entrada.
+- Processar contratos: coleta dados do Portal da Transparencia por CNPJ ou
+  converte CSV enriquecido em rede de entrada.
 - Publica - exato: executa o modelo OR-Tools de correlation clustering.
 - Publica - NSGA-II: executa a heuristica evolutiva e gera a fronteira.
 - Educacional - exato: faz a varredura de lambdas no modelo WSAC-WSMS.

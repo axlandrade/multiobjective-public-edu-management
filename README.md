@@ -23,6 +23,9 @@ streamlit run gui/dashboard_web.py
 A dashboard permite:
 
 - processar CSV bruto de contratos em uma rede padronizada;
+- coletar contratos diretamente da API do Portal da Transparencia por lista de
+  CNPJs;
+- enriquecer contratos coletados e gerar a rede de entrada automaticamente;
 - executar o modelo exato de gestao publica;
 - executar a heuristica NSGA-II de gestao publica;
 - visualizar fronteiras de Pareto;
@@ -55,6 +58,8 @@ A dashboard permite:
 - `graph_constructor.py`: constroi um `networkx.MultiGraph` a partir de CSV.
 - `create_real_network.py`: transforma contratos brutos em arestas com score de
   risco.
+- `transparency_collector.py`: coleta contratos do Portal da Transparencia por
+  CNPJ e aplaina os dados aninhados da API.
 - `optimization_model.py`: resolve o modelo exato de correlation clustering com
   OR-Tools.
 - `genetic_algorithm.py`: configura o NSGA-II para gerar fronteiras aproximadas.

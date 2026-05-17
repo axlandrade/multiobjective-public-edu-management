@@ -29,12 +29,20 @@ from src.public_management.create_real_network import process_and_save_network
 from src.public_management.genetic_algorithm import setup_genetic_algorithm
 from src.public_management.graph_constructor import build_multigraph_from_csv
 from src.public_management.optimization_model import solve_multigraph_cc
+from src.public_management.transparency_collector import (
+    DEFAULT_INVESTIGATION_CNPJS,
+    collect_contracts,
+    parse_cnpj_text,
+    save_contract_pipeline_outputs,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "data"
 UPLOAD_DIR = DATA_DIR / "dashboard_uploads"
 RESULTS_DIR = ROOT_DIR / "results_dashboard"
+TRANSPARENCY_DIR = DATA_DIR / "portal_transparencia"
+LAST_NETWORK_STATE_KEY = "latest_network_csv_path"
 
 
 def configure_page() -> None:
@@ -81,6 +89,30 @@ def resolve_data_source(uploaded_file, typed_path: str) -> Path | None:
     if typed_path.strip():
         return Path(typed_path.strip())
     return None
+
+
+def remember_network_path(path: str | Path) -> None:
+    """Store the latest generated network path for reuse across dashboard tabs."""
+    st.session_state[LAST_NETWORK_STATE_KEY] = str(path)
+
+
+def latest_network_path() -> Path | None:
+    """Return the latest generated network path when it still exists."""
+    value = st.session_state.get(LAST_NETWORK_STATE_KEY)
+    if not value:
+        return None
+    path = Path(value)
+    return path if path.exists() else None
+
+
+def network_download_button(path: Path, label: str = "Baixar rede real CSV") -> None:
+    """Render a download button for a generated model-ready network CSV."""
+    st.download_button(
+        label,
+        path.read_bytes(),
+        file_name=path.name,
+        mime="text/csv",
+    )
 
 
 def graph_summary(G: nx.Graph) -> dict[str, float]:
@@ -163,6 +195,17 @@ def draw_graph(G: nx.MultiGraph, clusters: dict | None = None, max_nodes: int = 
 
 def public_data_controls(prefix: str) -> Path | None:
     """Render shared data-source controls for public-management tabs."""
+    latest_path = latest_network_path()
+    if latest_path:
+        st.success(f"Rede real gerada disponivel: {latest_path}")
+        c1, c2 = st.columns([0.45, 0.55])
+        with c1:
+            use_latest = st.checkbox("Usar rede real gerada", value=True, key=f"{prefix}_use_latest")
+        with c2:
+            network_download_button(latest_path, "Baixar rede real")
+        if use_latest:
+            return latest_path
+
     uploaded = st.file_uploader("CSV de rede ou contratos", type=["csv"], key=f"{prefix}_upload")
     typed_path = st.text_input("Ou informe um caminho local", value="", key=f"{prefix}_path")
     return resolve_data_source(uploaded, typed_path)
@@ -442,20 +485,105 @@ def render_edu_exact() -> None:
 
 
 def render_real_data_processing() -> None:
-    """Convert raw procurement contracts into the standardized network format."""
-    st.subheader("Processamento de contratos reais")
-    uploaded = st.file_uploader("CSV bruto de contratos", type=["csv"], key="contracts_upload")
-    default_output = DATA_DIR / "rede_real_input_dashboard.csv"
-    output_path = st.text_input("Arquivo de saida", str(default_output))
+    """Collect/enrich Portal data or convert uploaded contracts to network CSV."""
+    st.subheader("Portal da Transparencia e rede de contratos")
+    existing_network = latest_network_path()
+    if existing_network:
+        st.info(f"Ultima rede real gerada: {existing_network}")
+        network_download_button(existing_network)
 
-    if st.button("Processar contratos", disabled=uploaded is None):
-        input_path = save_uploaded_csv(uploaded)
+    mode = st.radio(
+        "Origem dos dados",
+        ["Coletar pela API", "Converter CSV enriquecido"],
+        horizontal=True,
+    )
+
+    if mode == "Converter CSV enriquecido":
+        uploaded = st.file_uploader("CSV enriquecido de contratos", type=["csv"], key="contracts_upload")
+        default_output = DATA_DIR / "rede_real_input_dashboard.csv"
+        output_path = st.text_input("Arquivo de saida da rede", str(default_output))
+
+        if st.button("Gerar rede", disabled=uploaded is None):
+            input_path = save_uploaded_csv(uploaded)
+            try:
+                rows = process_and_save_network(str(input_path), output_path)
+            except Exception as exc:
+                st.error(str(exc))
+                return
+            remember_network_path(output_path)
+            st.success(f"Rede salva em {output_path} com {rows} arestas.")
+            network_download_button(Path(output_path))
+        return
+
+    st.caption(
+        "Cole sua chave da API de Dados Abertos do Portal da Transparencia e os CNPJs de interesse. "
+        "O dashboard salva contratos brutos, contratos enriquecidos e a rede pronta para o modelo."
+    )
+    api_key = st.text_input("Chave da API", type="password")
+    use_default_list = st.checkbox("Usar lista padrao da investigacao", value=True)
+    default_cnpj_text = "\n".join(DEFAULT_INVESTIGATION_CNPJS[:10])
+    cnpj_text = st.text_area(
+        "CNPJs para coleta",
+        value="\n".join(DEFAULT_INVESTIGATION_CNPJS) if use_default_list else default_cnpj_text,
+        height=220,
+    )
+
+    c1, c2, c3 = st.columns(3)
+    max_pages = c1.number_input("Max. paginas por CNPJ (0 = todas)", 0, 500, 0, step=1)
+    delay = c2.number_input("Pausa entre paginas (s)", 0.0, 5.0, 0.5, step=0.1)
+    output_folder = c3.text_input("Pasta de saida", str(TRANSPARENCY_DIR))
+
+    cnpjs = parse_cnpj_text(cnpj_text)
+    st.write(f"CNPJs validos identificados: **{len(cnpjs)}**")
+
+    if st.button("Coletar, enriquecer e gerar rede", type="primary", disabled=not api_key or not cnpjs):
+        status_box = st.empty()
+
+        def update_status(message: str) -> None:
+            status_box.info(message)
+
         try:
-            rows = process_and_save_network(str(input_path), output_path)
+            raw_df = collect_contracts(
+                cnpjs,
+                api_key,
+                request_delay=float(delay),
+                max_pages_per_cnpj=None if int(max_pages) == 0 else int(max_pages),
+                progress_callback=update_status,
+            )
         except Exception as exc:
             st.error(str(exc))
             return
-        st.success(f"Rede salva em {output_path} com {rows} arestas.")
+
+        if raw_df.empty:
+            st.warning("Nenhum contrato foi encontrado para os CNPJs informados.")
+            return
+
+        raw_path, enriched_path, enriched_df = save_contract_pipeline_outputs(raw_df, output_folder)
+        network_path = Path(output_folder) / "rede_real_input.csv"
+        try:
+            edge_count = process_and_save_network(str(enriched_path), str(network_path))
+        except Exception as exc:
+            st.error(f"Contratos coletados, mas a rede nao foi gerada: {exc}")
+            return
+        remember_network_path(network_path)
+
+        st.success(f"Coleta concluida: {len(raw_df)} contratos, {edge_count} arestas na rede.")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Contratos brutos", len(raw_df))
+        m2.metric("Linhas enriquecidas", len(enriched_df))
+        m3.metric("Arestas da rede", edge_count)
+
+        st.write("Arquivos gerados:")
+        st.code(f"{raw_path}\n{enriched_path}\n{network_path}", language="text")
+        st.dataframe(enriched_df.head(50), use_container_width=True, hide_index=True)
+
+        st.download_button(
+            "Baixar contratos enriquecidos",
+            enriched_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="contratos_enriquecidos.csv",
+            mime="text/csv",
+        )
+        network_download_button(network_path, "Baixar rede real para upload/modelo")
 
 
 def render_home() -> None:
